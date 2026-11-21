@@ -103,7 +103,7 @@ No environment variables and no secrets. `npm run build` produces `out/` and the
 | **G1** | local database, sample recipe, recipe list and detail, servings, adjust → family version, cooking mode with timer and read-aloud, feedback, journal | done 2026-11-21 (checked in a desktop browser only) |
 | **G2** | rest of P0: Home, search and categories, compare / history / restore original, favourites, settings; backup, restore, "Món đã xoá", reminder | done 2026-11-21 (backup file hand-over not yet tried in a real browser) |
 | **G3** | PWA (manifest, offline), GitHub Pages deployment | done 2026-11-21: deployed to GitHub Pages and checked offline in Chrome against the live site; not yet tried on an iPhone |
-| **G4** | recipe editor, photos, sources and YouTube, recipe packs | |
+| **G4** | recipe editor, photos, sources and YouTube, recipe packs | done 2026-11-21, not yet deployed: checked by unit tests and in Chrome at phone size; camera, HEIC photos, the share sheet and opening a received file not yet tried on an iPhone |
 | **G5** | P1: "Nhà đang có gì?", suggestions, equipment filter, taste profile, voice commands | |
 | **G6** | real-iPhone checks (TEST_PLAN Track B) | |
 | **G7** | P2: weekly plan, shopping list | |

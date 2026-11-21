@@ -9,6 +9,7 @@ import { Banner, EmptyState } from "@/components/ui/states";
 import { getActiveSession, getRecipeBundle, getSetting, listJournal, listRecipes } from "@/data/repo";
 import { DEFAULTS, REMIND_AFTER_DAYS } from "@/lib/settings";
 import { recipeBadge } from "@/lib/labels";
+import { RecipePhoto } from "@/components/recipe-photo";
 
 export default function HomePage() {
   const recipes = useLiveQuery(() => listRecipes(), []);
@@ -70,7 +71,7 @@ export default function HomePage() {
           <h2 className="text-xl">Mới nấu gần đây</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             {recent.map(({ recipe, version }) => (
-              <RecipeCard key={recipe!.id} href={`/cong-thuc/mon/?id=${recipe!.id}`} name={recipe!.name} totalMinutes={(version?.prepMinutes ?? 0) + (version?.cookMinutes ?? 0)} servings={version?.servings ?? 4} badge={recipeBadge(recipe!)} />
+              <RecipeCard key={recipe!.id} href={`/cong-thuc/mon/?id=${recipe!.id}`} name={recipe!.name} photo={<RecipePhoto imageId={recipe!.imageId} name={recipe!.name} />} totalMinutes={(version?.prepMinutes ?? 0) + (version?.cookMinutes ?? 0)} servings={version?.servings ?? 4} badge={recipeBadge(recipe!)} />
             ))}
           </div>
         </section>
@@ -98,7 +99,7 @@ function RecipeGrid({ ids }: { ids: string[] }) {
       {bundles.map((b) => {
         if (!b) return null;
         const v = b.family ?? b.original;
-        return <RecipeCard key={b.recipe.id} href={`/cong-thuc/mon/?id=${b.recipe.id}`} name={b.recipe.name} totalMinutes={v.prepMinutes + v.cookMinutes} servings={v.servings} badge={recipeBadge(b.recipe)} />;
+        return <RecipeCard key={b.recipe.id} href={`/cong-thuc/mon/?id=${b.recipe.id}`} name={b.recipe.name} photo={<RecipePhoto imageId={b.recipe.imageId} name={b.recipe.name} />} totalMinutes={v.prepMinutes + v.cookMinutes} servings={v.servings} badge={recipeBadge(b.recipe)} />;
       })}
     </div>
   );

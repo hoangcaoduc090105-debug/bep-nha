@@ -1,11 +1,13 @@
 import { cn } from "@/lib/cn";
 
-export type BadgeKind = "family" | "original" | "sample" | "approved";
+export type BadgeKind = "family" | "original" | "sample" | "entered" | "video" | "approved";
 
 const BADGES: Record<BadgeKind, { label: string; cls: string }> = {
   family: { label: "Bản nhà mình", cls: "bg-accent-soft text-text" },
   original: { label: "Bản gốc", cls: "bg-surface-warm text-text" },
   sample: { label: "Mẫu – chưa kiểm chứng", cls: "bg-warning-bg text-text" },
+  entered: { label: "Mới nhập – chưa nấu thử", cls: "bg-warning-bg text-text" },
+  video: { label: "Viết lại theo video", cls: "bg-surface-warm text-text" },
   approved: { label: "Gia đình đã duyệt", cls: "bg-secondary-soft text-text" },
 };
 

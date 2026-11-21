@@ -1,6 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
+import { RecipePhoto } from "@/components/recipe-photo";
 import { RecipeCard, RecipeCardSkeleton } from "@/components/ui/recipe-card";
 import { getRecipeBundle, listRecipes } from "@/data/repo";
 import { recipeBadge } from "@/lib/labels";
@@ -18,7 +19,7 @@ export function RecipeList({ query = "", category, favoritesOnly = false, empty 
       {bundles.map((b) => {
         if (!b) return null;
         const v = b.family ?? b.original;
-        return <RecipeCard key={b.recipe.id} href={`/cong-thuc/mon/?id=${b.recipe.id}`} name={b.recipe.name} totalMinutes={v.prepMinutes + v.cookMinutes} servings={v.servings} badge={recipeBadge(b.recipe)} />;
+        return <RecipeCard key={b.recipe.id} href={`/cong-thuc/mon/?id=${b.recipe.id}`} name={b.recipe.name} photo={<RecipePhoto imageId={b.recipe.imageId} name={b.recipe.name} />} totalMinutes={v.prepMinutes + v.cookMinutes} servings={v.servings} badge={recipeBadge(b.recipe)} />;
       })}
     </div>
   );

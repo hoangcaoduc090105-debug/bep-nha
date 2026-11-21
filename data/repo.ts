@@ -3,15 +3,16 @@
 
 import { getDb } from "./db";
 import { SEED_RECIPES, type SeedRecipe } from "./seed";
-import type { CookingSession, Recipe, RecipeVersion, Verdict } from "./types";
+import type { CookingSession, Draft, Recipe, RecipeForm, RecipeVersion, Verdict } from "./types";
 import { newId, nowIso, searchKey } from "@/lib/text";
+import { CATEGORY_ORDER, buildContent, buildSource, contentOf, sameContent, validateForm } from "@/features/editor/form";
 
 export class RuleError extends Error {}
 
 // ───────────── change tracking (for the backup reminder) ─────────────
 
 /** Records that there is something new to back up. Called after every change worth keeping. */
-async function touch(): Promise<void> {
+export async function touch(): Promise<void> {
   const db = getDb();
   if (!(await db.settings.get("unsavedSince"))) await db.settings.put({ key: "unsavedSince", value: nowIso() });
 }
@@ -90,7 +91,7 @@ export async function listRecipes(opts: { query?: string; archived?: boolean; fa
 
 /** Categories that have at least one dish, in the usual menu order. */
 export async function listCategories(): Promise<string[]> {
-  const order = ["Món kho", "Món chiên", "Món xào", "Món canh", "Món hấp", "Món luộc", "Món nướng", "Món gỏi", "Món ăn sáng", "Món ăn gia đình", "Món tráng miệng"];
+  const order = CATEGORY_ORDER;
   const used = new Set((await getDb().recipes.toArray()).filter((r) => !r.isArchived).flatMap((r) => r.categories));
   return [...order.filter((c) => used.has(c)), ...[...used].filter((c) => !order.includes(c)).sort((a, b) => a.localeCompare(b, "vi"))];
 }
@@ -144,6 +145,8 @@ export async function deleteRecipeForever(recipeId: string): Promise<void> {
     await db.versions.where("recipeId").equals(recipeId).delete();
     await db.recipes.delete(recipeId);
   });
+  await db.drafts.delete(recipeId);
+  await pruneImages();
 }
 
 // ───────────── versions ─────────────
@@ -227,6 +230,132 @@ export async function deleteVersion(versionId: string): Promise<void> {
     const recipe = await db.recipes.get(v.recipeId);
     if (recipe?.familyVersionId === versionId) await db.recipes.update(recipe.id, { familyVersionId: null, updatedAt: nowIso() });
     await db.versions.delete(versionId);
+  });
+}
+
+// ───────────── adding and editing recipes ─────────────
+
+/**
+ * A version may be corrected in place only while nothing depends on it: the dish was typed
+ * in by the family (not an app sample), and no cooking session of the dish exists.
+ * In every other case an edit becomes a new family version and the old one is kept.
+ */
+async function editableInPlace(recipe: Recipe): Promise<boolean> {
+  if (recipe.verification === "sample") return false;
+  return (await getDb().sessions.where("recipeId").equals(recipe.id).count()) === 0;
+}
+
+export type EditPlan = { bundle: RecipeBundle; base: RecipeVersion; inPlace: boolean };
+
+/** What the editor needs to edit a dish: the version it starts from, and what saving will do. */
+export async function planEdit(recipeId: string): Promise<EditPlan | null> {
+  const bundle = await getRecipeBundle(recipeId);
+  if (!bundle) return null;
+  return { bundle, base: bundle.family ?? bundle.original, inPlace: await editableInPlace(bundle.recipe) };
+}
+
+export type SaveResult = { recipeId: string; versionId: string; outcome: "created" | "updated_in_place" | "new_version" | "details_only" };
+
+/**
+ * Saves the editor's form.
+ *  - no recipeId: a new dish, labelled "Mới nhập – chưa nấu thử".
+ *  - recipeId: name, photo, categories and source are updated; if the ingredients or steps
+ *    changed, they are saved as a new family version (see editableInPlace for the one exception).
+ */
+export async function saveRecipeForm(input: { form: RecipeForm; recipeId?: string; baseVersionId?: string; reason?: string }): Promise<SaveResult> {
+  const { form } = input;
+  const problems = validateForm(form);
+  if (problems.length > 0) throw new RuleError(problems[0].message);
+  const db = getDb();
+  const now = nowIso();
+  const result = await db.transaction("rw", db.recipes, db.versions, db.sessions, db.images, db.drafts, async (): Promise<SaveResult> => {
+    const imageId = form.imageId && (await db.images.get(form.imageId)) ? form.imageId : null;
+    const details = { name: form.name.trim(), searchName: searchKey(form.name), description: form.description.trim(), categories: [...form.categories], imageId, updatedAt: now };
+
+    if (!input.recipeId) {
+      const recipeId = newId();
+      const versionId = newId();
+      await db.versions.add({ id: versionId, recipeId, kind: "original", versionNo: 1, parentVersionId: null, ...buildContent(form), createdAt: now });
+      await db.recipes.add({ ...details, id: recipeId, source: buildSource(form), difficulty: "easy", originalVersionId: versionId, familyVersionId: null, verification: "entered", isArchived: false, isFavorite: false, createdAt: now });
+      await db.drafts.delete("new");
+      return { recipeId, versionId, outcome: "created" };
+    }
+
+    const recipe = await db.recipes.get(input.recipeId);
+    if (!recipe) throw new RuleError("Không tìm thấy món để sửa.");
+    const base = await db.versions.get(input.baseVersionId ?? recipe.familyVersionId ?? recipe.originalVersionId);
+    if (!base || base.recipeId !== recipe.id) throw new RuleError("Không tìm thấy phiên bản để sửa.");
+    const content = buildContent(form, base);
+    // An app sample keeps saying it is a sample: its source is not rewritten by an edit.
+    const source = recipe.source.kind === "sample" ? recipe.source : buildSource(form);
+    await db.recipes.update(recipe.id, { ...details, source });
+    await db.drafts.delete(recipe.id);
+
+    if (sameContent(content, contentOf(base))) return { recipeId: recipe.id, versionId: base.id, outcome: "details_only" };
+    if (await editableInPlace(recipe)) {
+      await db.versions.update(base.id, { ...content, notes: content.notes, tasteTips: content.tasteTips });
+      return { recipeId: recipe.id, versionId: base.id, outcome: "updated_in_place" };
+    }
+    const existing = await db.versions.where("recipeId").equals(recipe.id).toArray();
+    const version: RecipeVersion = {
+      id: newId(),
+      recipeId: recipe.id,
+      kind: "family",
+      versionNo: Math.max(...existing.map((v) => v.versionNo)) + 1,
+      parentVersionId: base.id,
+      changeReason: input.reason?.trim() || undefined,
+      ...content,
+      createdAt: now,
+    };
+    await db.versions.add(version);
+    await db.recipes.update(recipe.id, { familyVersionId: version.id });
+    return { recipeId: recipe.id, versionId: version.id, outcome: "new_version" };
+  });
+  await pruneImages();
+  await touch();
+  return result;
+}
+
+// ───────────── drafts (work in progress in the editor) ─────────────
+
+export async function getDraft(id: string): Promise<Draft | undefined> {
+  return getDb().drafts.get(id);
+}
+
+export async function saveDraft(id: string, form: RecipeForm, baseVersionId: string | null): Promise<void> {
+  await getDb().drafts.put({ id, form, baseVersionId, updatedAt: nowIso() });
+}
+
+export async function discardDraft(id: string): Promise<void> {
+  await getDb().drafts.delete(id);
+  await pruneImages();
+}
+
+// ───────────── photos ─────────────
+
+/** Stores a photo that has already been made small (features/photos). Returns its id. */
+export async function addImage(blob: Blob): Promise<string> {
+  if (!blob.type.startsWith("image/")) throw new RuleError("Tệp này không phải là ảnh.");
+  if (blob.size > 3_000_000) throw new RuleError("Ảnh còn lớn quá nên chưa lưu được.");
+  const id = newId();
+  await getDb().images.add({ id, blob, createdAt: nowIso() });
+  return id;
+}
+
+export async function getImageBlob(id: string): Promise<Blob | null> {
+  return (await getDb().images.get(id))?.blob ?? null;
+}
+
+/** Removes photos that no dish, cooking session or draft refers to any more. */
+export async function pruneImages(): Promise<void> {
+  const db = getDb();
+  await db.transaction("rw", db.recipes, db.sessions, db.drafts, db.images, async () => {
+    const used = new Set<string>();
+    for (const r of await db.recipes.toArray()) if (r.imageId) used.add(r.imageId);
+    for (const s of await db.sessions.toArray()) for (const p of s.photoIds) used.add(p);
+    for (const d of await db.drafts.toArray()) if (d.form.imageId) used.add(d.form.imageId);
+    const unused = (await db.images.toCollection().primaryKeys()).filter((id) => !used.has(id));
+    if (unused.length > 0) await db.images.bulkDelete(unused);
   });
 }
 

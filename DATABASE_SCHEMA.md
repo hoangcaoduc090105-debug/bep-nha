@@ -16,7 +16,10 @@ IndexedDB is a document store, so a version keeps its ingredients and steps *ins
 | `images` | id | photo as a Blob (resized), created date |
 | `settings` | key | how to address the cook, text size, voice, default servings, spoon and bowl sizes, taste profile, equipment owned, pantry, last backup time |
 | `mealPlans`, `shoppingLists` | id | P2 |
-| `restorePoints` | id | the previous data, kept automatically before a restore or import |
+| `restorePoints` | id | the previous data, kept automatically before a restore or before receiving a recipe pack |
+| `drafts` | id (`new` or a recipe id) | unfinished work in the recipe editor (the form, the version it started from). Saved on every change; never part of a backup or a pack (db version 3) |
+
+`verification` is one of `sample` (written for the app), `entered` (typed in by the family or received in a pack, not yet cooked in the app), `source_checked`, `family_approved`.
 
 Inside a version:
 
@@ -39,6 +42,11 @@ equipment   name · kind (appliance | utensil) · required · alternative
 | rule | how |
 | --- | --- |
 | a cooked version is immutable | the repo has no "update version" for a version with sessions; edits create a new version |
+| one exception, for typing mistakes | a dish the family typed in (not an app sample) that has **no cooking session at all** is corrected in place by the editor (`saveRecipeForm`, outcome `updated_in_place`). An app sample, and anything cooked even once, always gets a new family version |
+| a recipe is complete before it is saved | `validateForm`: name, at least one ingredient with amount and unit, at least one step, every step with "Được khi" and "Tránh", a YouTube link for a recipe written from a video |
+| amounts live in the ingredient list, not in the text | an amount typed next to a listed ingredient is refused unless that ingredient is inserted as a `{slot}` token somewhere in the recipe (then the typed amount is a correction such as "nhạt thì thêm nửa muỗng cà phê nước mắm") |
+| receiving a pack only adds | `planImport`: a new dish is added whole; for a dish already on the device only missing versions are added, and its name, photo and version in use are untouched; same id with other contents is added as a separate version |
+| photos are small and never orphaned | resized to ≤ 1600 px JPEG before storing; `pruneImages` removes photos no dish, session or draft refers to |
 | the original is never overwritten | adjustments always produce `kind = family` |
 | a session's version always exists | versions with sessions cannot be deleted |
 | "Xoá món" is reversible | sets `isArchived`; permanent delete only when the recipe has no sessions |

@@ -10,17 +10,10 @@ import { Chip } from "@/components/ui/chip";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { Banner, ErrorState, Skeleton } from "@/components/ui/states";
 import { getRecipeBundle, saveFamilyVersion, type RecipeBundle } from "@/data/repo";
-import type { Ingredient, Unit } from "@/data/types";
+import type { Ingredient } from "@/data/types";
+import { stepForUnit } from "@/lib/quantity";
 
 const REASONS = ["Bớt mặn", "Bớt ngọt", "Thêm đậm đà", "Bớt cay", "Nhà thích vậy"];
-
-/** How much one press of − or + changes, chosen so the amounts stay measurable. */
-function stepFor(unit: Unit | null, quantity: number): number {
-  if (unit === "muong_ca_phe" || unit === "muong_canh" || unit === "chen") return 0.25;
-  if (unit === "g" || unit === "ml") return quantity >= 200 ? 50 : 10;
-  if (unit === "kg" || unit === "l") return 0.1;
-  return 0.5;
-}
 
 export default function AdjustPage() {
   return (
@@ -69,7 +62,7 @@ function AdjustForm({ bundle, initialReason, fromSessionId }: { bundle: RecipeBu
 
   const row = (i: Ingredient) => {
     const value = values[i.slot] ?? i.quantity!;
-    const step = stepFor(i.unit, i.quantity!);
+    const step = stepForUnit(i.unit, i.quantity!);
     return (
       <div key={i.slot} className="rounded-lg bg-surface p-3 shadow-card">
         <p className="px-2 text-lg">{i.name}</p>

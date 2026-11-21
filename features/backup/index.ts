@@ -1,7 +1,7 @@
 // Backup and restore against the local database, and handing the file to the user.
 
 import { getDb } from "@/data/db";
-import type { Setting } from "@/data/types";
+import type { Setting, StoredImage } from "@/data/types";
 import { newId, nowIso } from "@/lib/text";
 import { BackupError, buildPackage, readPackage, type BackupData, type BackupImage, type Manifest } from "./package";
 
@@ -11,23 +11,25 @@ export { BackupError };
 const DEVICE_ONLY = new Set(["lastBackupAt", "unsavedSince"]);
 const MAX_RESTORE_POINTS = 3;
 
+/** Reads the bytes of stored photos. Must be called outside a database transaction. */
+export async function toBackupImages(stored: StoredImage[]): Promise<BackupImage[]> {
+  return Promise.all(stored.map(async (i) => ({ id: i.id, type: i.blob.type, createdAt: i.createdAt, bytes: new Uint8Array(await i.blob.arrayBuffer()) })));
+}
+
 async function snapshot(): Promise<{ data: BackupData; images: BackupImage[] }> {
   const db = getDb();
-  return db.transaction("r", db.recipes, db.versions, db.sessions, db.settings, db.images, async () => {
-    const stored = await db.images.toArray();
-    const images: BackupImage[] = await Promise.all(
-      stored.map(async (i) => ({ id: i.id, type: i.blob.type, createdAt: i.createdAt, bytes: new Uint8Array(await i.blob.arrayBuffer()) })),
-    );
-    const data: BackupData = {
-      recipes: await db.recipes.toArray(),
-      versions: await db.versions.toArray(),
-      // An unfinished cooking session is not history; it is left out.
-      sessions: (await db.sessions.toArray()).filter((s) => s.status === "completed"),
-      settings: (await db.settings.toArray()).filter((s) => !DEVICE_ONLY.has(s.key)),
-      images: images.map(({ id, type, createdAt }) => ({ id, type, createdAt })),
-    };
-    return { data, images };
-  });
+  const read = await db.transaction("r", db.recipes, db.versions, db.sessions, db.settings, db.images, async () => ({
+    stored: await db.images.toArray(),
+    recipes: await db.recipes.toArray(),
+    versions: await db.versions.toArray(),
+    // An unfinished cooking session is not history; it is left out.
+    sessions: (await db.sessions.toArray()).filter((s) => s.status === "completed"),
+    settings: (await db.settings.toArray()).filter((s) => !DEVICE_ONLY.has(s.key)),
+  }));
+  // Photo bytes are read after the transaction: waiting on a file inside it would end it early.
+  const images = await toBackupImages(read.stored);
+  const data: BackupData = { recipes: read.recipes, versions: read.versions, sessions: read.sessions, settings: read.settings, images: images.map(({ id, type, createdAt }) => ({ id, type, createdAt })) };
+  return { data, images };
 }
 
 /** Builds a verified package of everything on the device. Does not record it as "backed up". */
@@ -79,19 +81,24 @@ async function replaceAll(bytes: Uint8Array): Promise<void> {
  */
 export async function restoreBackup(bytes: Uint8Array): Promise<BackupSummary> {
   const summary = await inspectBackup(bytes);
-  const db = getDb();
-  const current = await snapshot();
-  const currentBytes = await buildPackage(current.data, current.images, nowIso());
-  await db.restorePoints.add({ id: newId(), createdAt: nowIso(), reason: "Trước khi khôi phục", bytes: currentBytes });
-  const points = await db.restorePoints.orderBy("createdAt").toArray();
-  await db.restorePoints.bulkDelete(points.slice(0, Math.max(0, points.length - MAX_RESTORE_POINTS)).map((p) => p.id));
+  await keepRestorePoint("Trước khi khôi phục");
   await replaceAll(bytes);
   return summary;
 }
 
-export async function latestRestorePoint(): Promise<{ id: string; createdAt: string } | null> {
+/** Saves the data as it is now, so the change about to be made (a restore, or receiving dishes) can be undone. */
+export async function keepRestorePoint(reason: string): Promise<void> {
+  const db = getDb();
+  const current = await snapshot();
+  const currentBytes = await buildPackage(current.data, current.images, nowIso());
+  await db.restorePoints.add({ id: newId(), createdAt: nowIso(), reason, bytes: currentBytes });
+  const points = await db.restorePoints.orderBy("createdAt").toArray();
+  await db.restorePoints.bulkDelete(points.slice(0, Math.max(0, points.length - MAX_RESTORE_POINTS)).map((p) => p.id));
+}
+
+export async function latestRestorePoint(): Promise<{ id: string; createdAt: string; reason: string } | null> {
   const p = await getDb().restorePoints.orderBy("createdAt").last();
-  return p ? { id: p.id, createdAt: p.createdAt } : null;
+  return p ? { id: p.id, createdAt: p.createdAt, reason: p.reason } : null;
 }
 
 /** Undoes the last restore by putting back the data saved just before it. */
@@ -108,11 +115,11 @@ export async function undoRestore(): Promise<void> {
  * saved to Files / iCloud Drive), otherwise an ordinary download.
  * Returns false if she closed the share sheet without saving.
  */
-export async function handOver(bytes: Uint8Array, fileName: string): Promise<boolean> {
+export async function handOver(bytes: Uint8Array, fileName: string, title = "Sao lưu Bếp Nhà"): Promise<boolean> {
   const file = new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: "application/zip" });
   if (typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: "Sao lưu Bếp Nhà" });
+      await navigator.share({ files: [file], title });
       return true;
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return false;

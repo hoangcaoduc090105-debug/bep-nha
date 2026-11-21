@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Download, Upload, Undo2 } from "lucide-react";
+import Link from "next/link";
+import { Download, Send, Upload, Undo2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/back-link";
 import { Button } from "@/components/ui/button";
@@ -78,6 +79,13 @@ export default function SettingsPage() {
             </div>
           </Section>
 
+          <Section title="Gửi và nhận món">
+            <p className="text-text-muted">Gửi công thức sang điện thoại khác, hoặc nhận món người nhà gửi qua.</p>
+            <Link href="/cai-dat/mon/" className="inline-flex min-h-target items-center justify-center gap-3 rounded-md border-2 border-border-input bg-surface px-6 text-lg font-semibold active:bg-surface-warm">
+              <Send aria-hidden className="size-6" /> Gửi và nhận món
+            </Link>
+          </Section>
+
           <BackupSection lastBackupAt={settings.lastBackupAt} unsavedSince={settings.unsavedSince} />
         </>
       )}
@@ -143,9 +151,10 @@ function BackupSection({ lastBackupAt, unsavedSince }: { lastBackupAt: string | 
 
   const undo = async () => {
     setBusy("undo");
+    const what = restorePoint?.reason === "Trước khi nhận món" ? "nhận món" : "khôi phục";
     try {
       await undoRestore();
-      setNotice({ kind: "info", text: "Đã trả lại dữ liệu như trước khi khôi phục." });
+      setNotice({ kind: "info", text: `Đã trả lại dữ liệu như trước khi ${what}.` });
     } catch (e) {
       fail(e, "Chưa hoàn tác được.");
     }
@@ -170,7 +179,7 @@ function BackupSection({ lastBackupAt, unsavedSince }: { lastBackupAt: string | 
       </Button>
       {restorePoint && (
         <Button variant="secondary" fullWidth icon={<Undo2 aria-hidden className="size-6" />} onClick={() => setAskUndo(true)}>
-          Hoàn tác lần khôi phục gần nhất
+          {restorePoint.reason === "Trước khi nhận món" ? "Hoàn tác lần nhận món gần nhất" : "Hoàn tác lần khôi phục gần nhất"}
         </Button>
       )}
 
@@ -185,7 +194,7 @@ function BackupSection({ lastBackupAt, unsavedSince }: { lastBackupAt: string | 
           </>
         )}
       </ConfirmDialog>
-      <ConfirmDialog open={askUndo} title="Hoàn tác lần khôi phục gần nhất?" confirmLabel="Hoàn tác" busy={busy === "undo"} onConfirm={() => void undo()} onCancel={() => setAskUndo(false)}>
+      <ConfirmDialog open={askUndo} title={restorePoint?.reason === "Trước khi nhận món" ? "Hoàn tác lần nhận món gần nhất?" : "Hoàn tác lần khôi phục gần nhất?"} confirmLabel="Hoàn tác" busy={busy === "undo"} onConfirm={() => void undo()} onCancel={() => setAskUndo(false)}>
         {restorePoint && <p>Dữ liệu sẽ trở lại như lúc {formatDateTime(restorePoint.createdAt)}.</p>}
       </ConfirmDialog>
     </Section>

@@ -12,7 +12,10 @@ import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { z } from "zod";
 import type { CookingSession, Recipe, RecipeVersion, Setting } from "@/data/types";
 
-export const FORMAT_VERSION = 1;
+// 2: recipes may be labelled "entered"; a package says whether it is a backup or a recipe pack.
+// Packages written as format 1 are still read.
+export const FORMAT_VERSION = 2;
+export type PackageKind = "backup" | "recipe-pack";
 export const APP_ID = "bep-nha";
 
 export type BackupImage = { id: string; type: string; createdAt: string; bytes: Uint8Array };
@@ -28,6 +31,8 @@ export type BackupData = {
 export type Manifest = {
   app: string;
   formatVersion: number;
+  /** Absent in format 1, where every package was a backup. */
+  kind?: PackageKind;
   createdAt: string;
   counts: { recipes: number; versions: number; sessions: number; images: number };
   files: Record<string, string>;
@@ -82,7 +87,7 @@ const recipe = z.object({
   source: z.object({ kind: z.string(), title: z.string(), fidelity: z.string() }).loose(),
   originalVersionId: z.string().min(1),
   familyVersionId: z.string().nullable(),
-  verification: z.enum(["sample", "source_checked", "family_approved"]),
+  verification: z.enum(["sample", "entered", "source_checked", "family_approved"]),
   isArchived: z.boolean(),
   isFavorite: z.boolean(),
 }).loose();
@@ -111,6 +116,7 @@ const dataSchema = z.object({
 const manifestSchema = z.object({
   app: z.literal(APP_ID),
   formatVersion: z.number().int().min(1),
+  kind: z.enum(["backup", "recipe-pack"]).optional(),
   createdAt: z.string(),
   counts: z.object({ recipes: z.number(), versions: z.number(), sessions: z.number(), images: z.number() }),
   files: z.record(z.string(), z.string()),
@@ -157,7 +163,7 @@ export async function sha256(bytes: Uint8Array): Promise<string> {
 // ───────────── build ─────────────
 
 /** Builds the ZIP. Refuses to build from inconsistent data, so a bad backup is never written. */
-export async function buildPackage(data: BackupData, images: BackupImage[], createdAt: string): Promise<Uint8Array> {
+export async function buildPackage(data: BackupData, images: BackupImage[], createdAt: string, kind: PackageKind = "backup"): Promise<Uint8Array> {
   const problems = findBrokenLinks(data);
   if (problems.length > 0) throw new BackupError(`Dữ liệu có chỗ chưa khớp nên chưa sao lưu được: ${problems[0]}`);
   const imageIds = new Set(images.map((i) => i.id));
@@ -169,6 +175,7 @@ export async function buildPackage(data: BackupData, images: BackupImage[], crea
   const manifest: Manifest = {
     app: APP_ID,
     formatVersion: FORMAT_VERSION,
+    kind,
     createdAt,
     counts: { recipes: data.recipes.length, versions: data.versions.length, sessions: data.sessions.length, images: images.length },
     files: {},
@@ -187,7 +194,7 @@ export async function buildPackage(data: BackupData, images: BackupImage[], crea
 export type ParsedPackage = { manifest: Manifest; data: BackupData; images: BackupImage[] };
 
 /** Reads a package and verifies everything. Throws BackupError with a plain reason if anything is wrong. */
-export async function readPackage(zip: Uint8Array): Promise<ParsedPackage> {
+export async function readPackage(zip: Uint8Array, expected: PackageKind = "backup"): Promise<ParsedPackage> {
   let entries: Record<string, Uint8Array>;
   try {
     entries = unzipSync(zip);
@@ -204,10 +211,19 @@ export async function readPackage(zip: Uint8Array): Promise<ParsedPackage> {
   }
   if (manifest.formatVersion > FORMAT_VERSION) throw new BackupError("Bản sao lưu này được tạo bằng phiên bản ứng dụng mới hơn. Mẹ cập nhật ứng dụng rồi thử lại.");
 
-  const expected = Object.keys(manifest.files).sort();
+  const kind = manifest.kind ?? "backup";
+  if (kind !== expected) {
+    throw new BackupError(
+      kind === "recipe-pack"
+        ? "Đây là tệp gửi món, không phải bản sao lưu. Mẹ vào “Gửi và nhận món” để nhận nhé."
+        : "Đây là bản sao lưu cả máy, không phải tệp gửi món. Muốn dùng thì mẹ vào Cài đặt → “Khôi phục từ tệp sao lưu”.",
+    );
+  }
+
+  const listed = Object.keys(manifest.files).sort();
   const actual = Object.keys(entries).filter((p) => p !== "manifest.json" && !p.endsWith("/")).sort();
-  if (expected.join("|") !== actual.join("|")) throw new BackupError("Bản sao lưu thiếu hoặc thừa tệp so với lúc tạo.");
-  for (const path of expected) {
+  if (listed.join("|") !== actual.join("|")) throw new BackupError("Bản sao lưu thiếu hoặc thừa tệp so với lúc tạo.");
+  for (const path of listed) {
     if ((await sha256(entries[path])) !== manifest.files[path]) throw new BackupError("Bản sao lưu đã bị thay đổi hoặc hỏng (mã kiểm tra không khớp).");
   }
 

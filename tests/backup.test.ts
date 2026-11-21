@@ -118,7 +118,7 @@ describe("a damaged package never replaces good data", () => {
     ],
     [
       "made by a newer version of the app",
-      (zip) => tamper(zip, "manifest.json", (b) => strToU8(strFromU8(b).replace('"formatVersion": 1', '"formatVersion": 99'))),
+      (zip) => tamper(zip, "manifest.json", (b) => strToU8(strFromU8(b).replace(/"formatVersion": \d+/, '"formatVersion": 99'))),
     ],
   ];
 
@@ -174,5 +174,185 @@ describe("backup reminder bookkeeping", () => {
     await markBackedUp(createdAt);
     await restoreBackup(bytes);
     expect(await repo.getSetting("lastBackupAt", null)).toBe(createdAt);
+  });
+});
+
+// ───────────── recipe packs ─────────────
+
+import { createRecipePack, importRecipePack, inspectRecipePack } from "@/features/backup/pack";
+import { formFromRecipe, newStep } from "@/features/editor/form";
+
+/** A second, separate device: its own database with the samples loaded. */
+async function onOtherDevice<T>(work: () => Promise<T>): Promise<T> {
+  const here = getDb();
+  setDbForTests(new BepNhaDB(`other-device-${++n}`));
+  await repo.ensureSeeded();
+  try {
+    return await work();
+  } finally {
+    setDbForTests(here);
+  }
+}
+
+async function ownDish() {
+  const b = (await repo.getRecipeBundle((await repo.listRecipes({ query: "ca kho to" }))[0].id))!;
+  const form = { ...formFromRecipe(b.recipe, b.original), name: "Cá kho của ngoại", sourceNote: "Bà ngoại chỉ" };
+  const imageId = await repo.addImage(new Blob([new Uint8Array([255, 216, 255, 9, 8, 7])], { type: "image/jpeg" }));
+  const r = await repo.saveRecipeForm({ form: { ...form, imageId } });
+  return { ...r, imageId };
+}
+
+describe("recipe packs", () => {
+  it("carries a dish with its versions and photo to another device, without the journal", async () => {
+    const dish = await ownDish();
+    const s = await repo.startSession(dish.recipeId, dish.versionId, 4);
+    await repo.finishSession(s.id, { verdict: "rat_ngon" });
+    await repo.toggleFavorite(dish.recipeId);
+    const v2 = await repo.saveFamilyVersion({ recipeId: dish.recipeId, baseVersionId: dish.versionId, changes: [{ slot: "nuoc_mam", quantity: 1.5 }], reason: "Bớt mặn", fromSessionId: s.id });
+    const pack = await createRecipePack([dish.recipeId]);
+    expect(pack.fileName).toMatch(/^bep-nha-mon-ca-kho-cua-ngoai-.*\.zip$/);
+
+    await onOtherDevice(async () => {
+      const summary = await inspectRecipePack(pack.bytes);
+      expect(summary).toMatchObject({ added: 1, existing: 0, newVersions: 0 });
+      expect(await repo.listRecipes()).toHaveLength(N); // inspecting changes nothing
+      await importRecipePack(pack.bytes);
+      const got = (await repo.getRecipeBundle(dish.recipeId))!;
+      expect(got.recipe).toMatchObject({ name: "Cá kho của ngoại", verification: "entered", isFavorite: false, imageId: dish.imageId });
+      expect(got.versions.map((v) => v.id)).toEqual([dish.versionId, v2.id]);
+      expect(got.family?.id).toBe(v2.id);
+      expect(got.family?.fromSessionId).toBeUndefined();
+      expect(got.timesCooked).toBe(0);
+      expect(await repo.listJournal()).toHaveLength(0);
+      expect([...new Uint8Array(await (await repo.getImageBlob(dish.imageId))!.arrayBuffer())]).toEqual([255, 216, 255, 9, 8, 7]);
+      expect(await repo.listRecipes()).toHaveLength(N + 1);
+    });
+  });
+
+  it("receiving the same pack twice adds nothing the second time", async () => {
+    const dish = await ownDish();
+    const pack = await createRecipePack([dish.recipeId]);
+    await onOtherDevice(async () => {
+      await importRecipePack(pack.bytes);
+      const before = await dump();
+      const again = await importRecipePack(pack.bytes);
+      expect(again).toMatchObject({ added: 0, existing: 1, newVersions: 0 });
+      expect(await dump()).toEqual(before);
+    });
+  });
+
+  it("never overwrites: a dish the device already has keeps its name, photo, version in use and history", async () => {
+    const dish = await ownDish();
+    const first = await createRecipePack([dish.recipeId]);
+    // The sender cooks it, then changes it and sends it again.
+    const s = await repo.startSession(dish.recipeId, dish.versionId, 4);
+    await repo.finishSession(s.id, { verdict: "hoi_man" });
+    const plan = (await repo.planEdit(dish.recipeId))!;
+    const form = { ...formFromRecipe(plan.bundle.recipe, plan.base), name: "Tên mới bên máy gửi" };
+    form.steps.push({ ...newStep(), title: "Rắc tiêu", text: "Rắc thêm tiêu.", doneWhen: "thơm mùi tiêu.", avoid: "rắc khi còn sôi mạnh." });
+    const v2 = await repo.saveRecipeForm({ form, recipeId: dish.recipeId, reason: "Thêm tiêu" });
+    const second = await createRecipePack([dish.recipeId]);
+
+    await onOtherDevice(async () => {
+      await importRecipePack(first.bytes);
+      // The receiver has made the dish her own in the meantime.
+      const mine = await repo.saveFamilyVersion({ recipeId: dish.recipeId, baseVersionId: dish.versionId, changes: [{ slot: "duong", quantity: 2 }], reason: "Nhà thích ngọt" });
+      const cooked = await repo.startSession(dish.recipeId, mine.id, 4);
+      await repo.finishSession(cooked.id, { verdict: "rat_ngon" });
+      const before = (await repo.getRecipeBundle(dish.recipeId))!;
+
+      const summary = await importRecipePack(second.bytes);
+      expect(summary).toMatchObject({ added: 0, existing: 1, newVersions: 1 });
+      const after = (await repo.getRecipeBundle(dish.recipeId))!;
+      expect(after.recipe).toEqual(before.recipe); // name, photo, version in use: untouched
+      expect(after.family?.id).toBe(mine.id);
+      for (const v of before.versions) expect(after.versions.find((x) => x.id === v.id)).toEqual(v);
+      const added = after.versions.find((x) => x.id === v2.versionId)!;
+      expect(added).toMatchObject({ kind: "family", versionNo: 3, changeReason: "Thêm tiêu" });
+      expect(added.steps).toHaveLength(before.original.steps.length + 1);
+      expect((await repo.listJournal())[0].version?.id).toBe(mine.id);
+    });
+  });
+
+  it("a version that arrives with the same id but other contents is added beside the one on the device", async () => {
+    const dish = await ownDish();
+    const first = await createRecipePack([dish.recipeId]);
+    // Never cooked, so the sender corrects it in place: same version id, new contents.
+    const plan = (await repo.planEdit(dish.recipeId))!;
+    const form = formFromRecipe(plan.bundle.recipe, plan.base);
+    form.ingredients = form.ingredients.map((i) => (i.slot === "nuoc_mam" ? { ...i, quantity: 3 } : i));
+    expect((await repo.saveRecipeForm({ form, recipeId: dish.recipeId })).outcome).toBe("updated_in_place");
+    const second = await createRecipePack([dish.recipeId]);
+
+    await onOtherDevice(async () => {
+      await importRecipePack(first.bytes);
+      const before = (await repo.getRecipeBundle(dish.recipeId))!;
+      expect(await importRecipePack(second.bytes)).toMatchObject({ newVersions: 1 });
+      const after = (await repo.getRecipeBundle(dish.recipeId))!;
+      expect(after.original).toEqual(before.original);
+      expect(after.versions).toHaveLength(2);
+      expect(after.versions[1]).toMatchObject({ kind: "family", parentVersionId: dish.versionId });
+      expect(after.versions[1].ingredients.find((i) => i.slot === "nuoc_mam")?.quantity).toBe(3);
+      expect(after.family).toBeNull(); // the version in use is not switched for her
+      expect(await importRecipePack(second.bytes)).toMatchObject({ newVersions: 0 });
+    });
+  });
+
+  it("receiving can be undone", async () => {
+    const dish = await ownDish();
+    const pack = await createRecipePack([dish.recipeId]);
+    await onOtherDevice(async () => {
+      const before = await dump();
+      await importRecipePack(pack.bytes);
+      expect((await latestRestorePoint())?.reason).toBe("Trước khi nhận món");
+      await undoRestore();
+      expect(await dump()).toEqual(before);
+    });
+  });
+
+  it("a backup is not accepted as a pack, a pack is not accepted as a backup, and a damaged pack adds nothing", async () => {
+    const dish = await ownDish();
+    const pack = await createRecipePack([dish.recipeId]);
+    const backup = await createBackup();
+    await expect(inspectBackup(pack.bytes)).rejects.toThrow(/tệp gửi món/);
+    await expect(restoreBackup(pack.bytes)).rejects.toThrow(BackupError);
+    await onOtherDevice(async () => {
+      const before = await dump();
+      await expect(importRecipePack(backup.bytes)).rejects.toThrow(/bản sao lưu cả máy/);
+      const broken = await tamper(pack.bytes, `images/${dish.imageId}`, (b) => b.slice(1));
+      await expect(importRecipePack(broken)).rejects.toThrow(BackupError);
+      await expect(importRecipePack(new Uint8Array([1, 2, 3]))).rejects.toThrow(BackupError);
+      expect(await dump()).toEqual(before);
+      expect(await latestRestorePoint()).toBeNull();
+    });
+  });
+
+  it("a backup written before recipe packs existed (format 1) still restores", async () => {
+    await makeHistory();
+    const { bytes } = await createBackup();
+    const entries: Record<string, Uint8Array> = unzipSync(bytes);
+    const manifest = JSON.parse(strFromU8(entries["manifest.json"]));
+    manifest.formatVersion = 1;
+    delete manifest.kind;
+    entries["manifest.json"] = strToU8(JSON.stringify(manifest));
+    const old = zipSync(entries);
+    const before = await dump();
+    await wipe();
+    await restoreBackup(old);
+    expect(await dump()).toEqual(before);
+  });
+
+  it("a full backup includes dish photos and the new label, and leaves drafts out", async () => {
+    const dish = await ownDish();
+    await repo.saveDraft("new", formFromRecipe((await repo.getRecipeBundle(dish.recipeId))!.recipe, (await repo.getRecipeBundle(dish.recipeId))!.original), null);
+    const { bytes } = await createBackup();
+    const entries = unzipSync(bytes);
+    expect(Object.keys(entries)).toContain(`images/${dish.imageId}`);
+    expect(strFromU8(entries["data.json"])).not.toContain("drafts");
+    const before = await dump();
+    await wipe();
+    await restoreBackup(bytes);
+    expect(await dump()).toEqual(before);
+    expect((await repo.getRecipeBundle(dish.recipeId))!.recipe).toMatchObject({ verification: "entered", imageId: dish.imageId });
   });
 });

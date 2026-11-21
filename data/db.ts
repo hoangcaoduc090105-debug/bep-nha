@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from "dexie";
-import type { CookingSession, Recipe, RecipeVersion, RestorePoint, Setting, StoredImage } from "./types";
+import type { CookingSession, Draft, Recipe, RecipeVersion, RestorePoint, Setting, StoredImage } from "./types";
 
 /**
  * The local database. All of the family's data lives here, on the device.
@@ -12,6 +12,7 @@ export class BepNhaDB extends Dexie {
   images!: EntityTable<StoredImage, "id">;
   settings!: EntityTable<Setting, "key">;
   restorePoints!: EntityTable<RestorePoint, "id">;
+  drafts!: EntityTable<Draft, "id">;
 
   constructor(name = "bep-nha") {
     super(name);
@@ -25,6 +26,8 @@ export class BepNhaDB extends Dexie {
     });
     // v2: restore points (the data as it was before a restore), so a restore can be undone.
     this.version(2).stores({ restorePoints: "id, createdAt" });
+    // v3: unfinished work in the recipe editor. Not part of a backup.
+    this.version(3).stores({ drafts: "id" });
   }
 }
 

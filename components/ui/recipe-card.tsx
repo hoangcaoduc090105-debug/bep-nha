@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { Clock, Users } from "lucide-react";
 import { PhotoTile } from "./photo-tile";
@@ -7,15 +8,17 @@ export type RecipeCardProps = {
   href: string;
   name: string;
   imageUrl?: string | null;
+  /** The photo, when the caller loads it itself (a photo stored on the device). */
+  photo?: ReactNode;
   totalMinutes: number;
   servings: number;
   badge?: BadgeKind;
 };
 
-export function RecipeCard({ href, name, imageUrl, totalMinutes, servings, badge }: RecipeCardProps) {
+export function RecipeCard({ href, name, imageUrl, photo, totalMinutes, servings, badge }: RecipeCardProps) {
   return (
     <Link href={href} className="block rounded-lg border border-border bg-surface p-3 shadow-card active:bg-surface-warm">
-      <PhotoTile src={imageUrl} name={name} />
+      {photo ?? <PhotoTile src={imageUrl} name={name} />}
       <div className="mt-3 flex flex-col gap-2 px-1 pb-1">
         <h3 className="text-lg">{name}</h3>
         <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-base text-text-muted">

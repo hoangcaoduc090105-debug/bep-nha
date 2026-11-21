@@ -4,13 +4,13 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Clock, Heart, Play, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Clock, Heart, Pencil, Play, Send, SlidersHorizontal, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/back-link";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { IngredientRow } from "@/components/ui/ingredient-row";
-import { PhotoTile } from "@/components/ui/photo-tile";
+import { RecipePhoto } from "@/components/recipe-photo";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { Banner, ErrorState, Skeleton } from "@/components/ui/states";
 import { VersionBadge, VersionSwitch } from "@/components/ui/version";
@@ -19,6 +19,8 @@ import type { Ingredient } from "@/data/types";
 import { diffVersions, fillStepText, scaledIngredients } from "@/features/recipe-text";
 import { formatAmount, formatMetric } from "@/lib/quantity";
 import { formatDateTime, versionName } from "@/lib/labels";
+import { BackupError, handOver } from "@/features/backup";
+import { createRecipePack } from "@/features/backup/pack";
 
 export default function RecipePage() {
   return (
@@ -71,6 +73,21 @@ function RecipeDetail({ bundle }: { bundle: RecipeBundle }) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [askDelete, setAskDelete] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState<string | null>(null);
+
+  const send = async () => {
+    setSending(true);
+    setError(null);
+    setSent(null);
+    try {
+      const { bytes, fileName } = await createRecipePack([recipe.id]);
+      if (await handOver(bytes, fileName, `Món ${recipe.name}`)) setSent(`Đã tạo tệp “${fileName}”. Mẹ gửi tệp này qua Zalo hoặc AirDrop; máy bên kia vào Cài đặt → “Gửi và nhận món” để nhận.`);
+    } catch (e) {
+      setError(e instanceof BackupError ? e.message : "Chưa tạo được tệp gửi món. Mẹ thử lại nhé.");
+    }
+    setSending(false);
+  };
 
   const ingredients = scaledIngredients(version, servings);
   const changes = family ? diffVersions(original, family).filter((d) => d.changed) : [];
@@ -89,13 +106,15 @@ function RecipeDetail({ bundle }: { bundle: RecipeBundle }) {
 
   return (
     <>
-      <PhotoTile name={recipe.name} />
+      <RecipePhoto imageId={recipe.imageId} name={recipe.name} />
       <header className="flex flex-col gap-3">
         <h1 className="text-display">{recipe.name}</h1>
         <div className="flex flex-wrap gap-2">
           <VersionBadge kind={view === "family" ? "family" : "original"} />
           {recipe.verification === "sample" && <VersionBadge kind="sample" />}
+          {recipe.verification === "entered" && <VersionBadge kind="entered" />}
           {recipe.verification === "family_approved" && <VersionBadge kind="approved" />}
+          {recipe.source.fidelity === "transcribed" && recipe.source.kind === "youtube" && <VersionBadge kind="video" />}
         </div>
         <p>{recipe.description}</p>
         <p className="flex items-center gap-2 text-text-muted">
@@ -183,11 +202,15 @@ function RecipeDetail({ bundle }: { bundle: RecipeBundle }) {
 
       <section className="flex flex-col gap-2">
         <h2 className="text-xl">Nguồn</h2>
-        <p>{recipe.source.title}</p>
+        <p>
+          {recipe.source.title}
+          {recipe.source.creatorName && ` — ${recipe.source.creatorName}`}
+        </p>
+        {recipe.source.kind === "youtube" && <p className="text-text-muted">Công thức này do nhà mình viết lại theo video; lượng có thể khác với video.</p>}
         {recipe.source.note && <p className="text-text-muted">{recipe.source.note}</p>}
         {recipe.source.url && (
           <a href={recipe.source.url} target="_blank" rel="noreferrer" className="inline-flex min-h-target items-center text-lg font-medium text-accent underline">
-            Mở nguồn gốc
+            {recipe.source.kind === "youtube" ? "Xem video gốc (cần có mạng)" : "Mở nguồn gốc (cần có mạng)"}
           </a>
         )}
       </section>
@@ -211,6 +234,13 @@ function RecipeDetail({ bundle }: { bundle: RecipeBundle }) {
         <Link href={`/cong-thuc/chinh/?id=${recipe.id}`} className="inline-flex min-h-target items-center justify-center gap-3 rounded-md border-2 border-border-input bg-surface px-6 text-lg font-semibold">
           <SlidersHorizontal aria-hidden className="size-6" /> Chỉnh theo khẩu vị nhà mình
         </Link>
+        <Link href={`/cong-thuc/soan/?id=${recipe.id}`} className="inline-flex min-h-target items-center justify-center gap-3 rounded-md border-2 border-border-input bg-surface px-6 text-lg font-semibold">
+          <Pencil aria-hidden className="size-6" /> Sửa món (tên, ảnh, nguyên liệu, các bước)
+        </Link>
+        <Button variant="secondary" loading={sending} icon={<Send aria-hidden className="size-6" />} onClick={() => void send()}>
+          Gửi món này cho máy khác
+        </Button>
+        {sent && <Banner>{sent}</Banner>}
         <Button variant="secondary" aria-pressed={recipe.isFavorite} icon={<Heart aria-hidden className="size-6" fill={recipe.isFavorite ? "currentColor" : "none"} />} onClick={() => void toggleFavorite(recipe.id)}>
           {recipe.isFavorite ? "Bỏ khỏi yêu thích" : "Thêm vào yêu thích"}
         </Button>

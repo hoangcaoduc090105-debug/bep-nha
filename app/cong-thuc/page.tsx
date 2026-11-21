@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AppShell } from "@/components/app-shell";
 import { RecipeList } from "@/components/recipe-list";
@@ -22,6 +24,9 @@ export default function RecipesPage() {
   return (
     <AppShell tab="recipes">
       <h1 className="text-xl">Công thức</h1>
+      <Link href="/cong-thuc/soan/" className="inline-flex min-h-target items-center justify-center gap-3 rounded-md border-2 border-border-input bg-surface px-6 text-lg font-semibold active:bg-surface-warm">
+        <Plus aria-hidden className="size-6" /> Thêm món mới
+      </Link>
       <SearchField label="Tìm món ăn" value={query} onChange={setQuery} placeholder="Ví dụ: cá kho" />
       {categories && categories.length > 1 && (
         <div role="group" aria-label="Loại món" className="flex flex-wrap gap-3">

@@ -13,6 +13,7 @@ export const VERDICT_LABELS: Record<Verdict, string> = {
 export function recipeBadge(recipe: Recipe): BadgeKind {
   if (recipe.verification === "family_approved") return "approved";
   if (recipe.verification === "sample") return "sample";
+  if (recipe.verification === "entered") return "entered";
   return recipe.familyVersionId ? "family" : "original";
 }
 

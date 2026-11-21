@@ -60,7 +60,11 @@ export type RecipeSource = {
   note?: string;
 };
 
-export type Verification = "sample" | "source_checked" | "family_approved";
+/**
+ * sample = written for the app, never cooked · entered = typed in by the family (or received
+ * in a recipe pack), not yet cooked in the app · family_approved = confirmed after a good meal.
+ */
+export type Verification = "sample" | "entered" | "source_checked" | "family_approved";
 
 export type Recipe = {
   id: string;
@@ -133,3 +137,55 @@ export type Setting = { key: string; value: unknown };
 
 /** The data as it was just before a restore or import, kept on the device so it can be undone. */
 export type RestorePoint = { id: string; createdAt: string; reason: string; bytes: Uint8Array };
+
+// ───────────── the recipe editor ─────────────
+
+export type FormIngredient = {
+  slot: string;
+  name: string;
+  kind: "food" | "seasoning";
+  /** null together with unit "it" means "một ít, vừa ăn". */
+  quantity: number | null;
+  unit: Unit | null;
+  prepNote: string;
+  optional: boolean;
+};
+
+export type FormStep = {
+  /** Stable key for the list on screen; not stored in the recipe. */
+  key: string;
+  title: string;
+  /** One instruction per line. Ingredients are written as {slot} tokens. */
+  text: string;
+  doneWhen: string;
+  avoid: string;
+  timerMinutes: number | null;
+  timerLabel: string;
+  heat: Step["heat"] | null;
+};
+
+export type FormSourceKind = "family" | "youtube" | "other";
+
+/** What the editor works on. It may be incomplete; it only becomes a recipe when it passes validation. */
+export type RecipeForm = {
+  name: string;
+  description: string;
+  categories: string[];
+  servings: number;
+  prepMinutes: number;
+  cookMinutes: number;
+  imageId: string | null;
+  ingredients: FormIngredient[];
+  equipment: Equipment[];
+  steps: FormStep[];
+  sourceKind: FormSourceKind;
+  sourceTitle: string;
+  sourceCreator: string;
+  sourceUrl: string;
+  sourceNote: string;
+  notes: string;
+  tasteTips: string;
+};
+
+/** Work in progress in the editor, saved after every change. id = "new" or the recipe being edited. */
+export type Draft = { id: string; form: RecipeForm; baseVersionId: string | null; updatedAt: string };

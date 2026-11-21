@@ -82,3 +82,32 @@ export function formatAmountSpoken(quantity: number | null, unit: string | null)
   }
   return `${quantity.toLocaleString("vi-VN", { maximumFractionDigits: 1 })} ${label}`.trim();
 }
+
+/** How much one press of − or + changes, chosen so the amounts stay measurable. */
+export function stepForUnit(unit: string | null, quantity: number): number {
+  if (unit === "muong_ca_phe" || unit === "muong_canh" || unit === "chen") return 0.25;
+  if (unit === "g" || unit === "ml") return quantity >= 200 ? 50 : 10;
+  if (unit === "kg" || unit === "l") return 0.1;
+  return 0.5;
+}
+
+const GLYPHS: Record<string, number> = { "½": 0.5, "¼": 0.25, "¾": 0.75, "⅓": 1 / 3, "⅔": 2 / 3 };
+
+/**
+ * Reads an amount the way people type it: "2", "1,5", "1.5", "1/2", "1 1/2", "1½".
+ * Returns null when it is not a positive number.
+ */
+export function parseAmount(text: string): number | null {
+  const t = text.trim().replace(",", ".");
+  if (t === "") return null;
+  let value: number;
+  const mixed = /^(\d+)?\s*([½¼¾⅓⅔])$/.exec(t);
+  const fraction = /^(?:(\d+)\s+)?(\d+)\s*\/\s*(\d+)$/.exec(t);
+  if (mixed) value = Number(mixed[1] ?? 0) + GLYPHS[mixed[2]];
+  else if (fraction) {
+    if (Number(fraction[3]) === 0) return null;
+    value = Number(fraction[1] ?? 0) + Number(fraction[2]) / Number(fraction[3]);
+  } else if (/^\d+(\.\d+)?$/.test(t)) value = Number(t);
+  else return null;
+  return Number.isFinite(value) && value > 0 ? Math.round(value * 1000) / 1000 : null;
+}
