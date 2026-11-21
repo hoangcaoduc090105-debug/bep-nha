@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import Link from "next/link";
-import { Download, Send, Upload, Undo2 } from "lucide-react";
+import { Download, Send, Upload, Undo2, Volume2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/back-link";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import type { Recipe } from "@/data/types";
 import { BackupError, createBackup, handOver, inspectBackup, latestRestorePoint, markBackedUp, restoreBackup, undoRestore, type BackupSummary } from "@/features/backup";
 import { formatDateTime } from "@/lib/labels";
 import { DEFAULTS, TEXT_SCALES, VOICE_RATES, type TextScale } from "@/lib/settings";
+import { useSpeech } from "@/features/voice/tts";
 
 type Notice = { kind: "info" | "error"; text: string } | null;
 
@@ -66,6 +67,7 @@ export default function SettingsPage() {
             <Chip selected={settings.autoRead} onClick={() => void setSetting("autoRead", !settings.autoRead)}>
               Tự đọc khi sang bước mới
             </Chip>
+            <VoiceCheck rate={settings.voiceRate} />
           </Section>
 
           <Section title="Cách xưng hô">
@@ -92,6 +94,28 @@ export default function SettingsPage() {
       <ArchivedSection />
       <StorageSection />
     </AppShell>
+  );
+}
+
+const VOICE_SAMPLE = "Bước 2. Ướp cá. Cho cá vào tô. Thêm 1 muỗng canh rưỡi nước mắm và nửa muỗng cà phê tiêu. Được khi cá ngấm gia vị, sau khoảng 15 phút.";
+
+/** Says which voice the phone gives the app, lets her hear it, and explains how to get a better one. */
+function VoiceCheck({ rate }: { rate: number }) {
+  const speech = useSpeech(rate);
+  if (speech.available === null) return null;
+  if (!speech.available) return <Banner>Máy này chưa có giọng đọc tiếng Việt, nên nút “Đọc” chưa dùng được.</Banner>;
+  return (
+    <>
+      <p>
+        Đang dùng giọng: {speech.voiceName} ({speech.betterVoice ? "loại hay hơn" : "loại thường"}).
+      </p>
+      <Button variant="secondary" className="self-start" icon={<Volume2 aria-hidden className="size-6" />} onClick={() => (speech.speaking ? speech.stop() : speech.speak(VOICE_SAMPLE))}>
+        {speech.speaking ? "Dừng đọc" : "Nghe thử"}
+      </Button>
+      {!speech.betterVoice && (
+        <p className="text-text-muted">Giọng đọc là giọng có sẵn của điện thoại. Muốn nghe hay hơn: mở Cài đặt của iPhone, vào Trợ năng, tìm phần giọng đọc tiếng Việt và tải về giọng loại “Nâng cao” (miễn phí). Tải xong, đóng hẳn Bếp Nhà rồi mở lại.</p>
+      )}
+    </>
   );
 }
 

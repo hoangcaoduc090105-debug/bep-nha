@@ -72,5 +72,5 @@ Chi tiết: `FEATURE_ROADMAP.md`, `PRD.md` (mục 15 là mô hình hiện hành;
 ## Còn mở
 
 - Chưa thử trên iPhone thật: thêm vào màn hình chính, giọng đọc, chuông hẹn giờ, giữ màn hình sáng, bảng chia sẻ khi sao lưu và khi gửi món, chụp/chọn ảnh (kể cả ảnh HEIC), nhận tệp gửi món qua Zalo/AirDrop (phải "Lưu vào Tệp" rồi chọn trong "Nhận món"), gõ tiếng Việt trong trình soạn.
-- Chưa biết model và phiên bản iOS của máy mẹ.
+- Máy mẹ: iPhone 14 Pro Max, iOS 26.5 (chủ dự án cho biết 2026-11-21). Màn hình rộng 430 pt; kiểm thử tự động hiện chạy ở cỡ Pixel 7 (412 pt) trên Chrome, chưa chạy trên WebKit/Safari.
 - 10 công thức mẫu chưa ai nấu thử.

@@ -4,17 +4,20 @@
 // Whether a Vietnamese voice exists depends on the device, so it is detected, never assumed.
 
 import { useCallback, useEffect, useState } from "react";
+import { isBetterVoice, pickVietnameseVoice, speechChunks } from "./text";
 
 function findVietnameseVoice(): SpeechSynthesisVoice | null {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-  const voices = window.speechSynthesis.getVoices();
-  return voices.find((v) => v.lang.toLowerCase().replace("_", "-").startsWith("vi")) ?? null;
+  return pickVietnameseVoice(window.speechSynthesis.getVoices());
 }
 
 export type Speech = {
   /** null while the voice list is still loading. */
   available: boolean | null;
   speaking: boolean;
+  /** The voice in use, and whether it is one of the better-sounding kinds. */
+  voiceName: string | null;
+  betterVoice: boolean;
   speak: (text: string) => void;
   stop: () => void;
 };
@@ -53,17 +56,22 @@ export function useSpeech(rate = 0.9): Speech {
       if (!voice) return;
       const synth = window.speechSynthesis;
       synth.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.voice = voice;
-      u.lang = voice.lang;
-      u.rate = rate;
-      u.onend = () => setSpeaking(false);
-      u.onerror = () => setSpeaking(false);
+      // One utterance per sentence: the voice pauses between them, which is far easier to follow.
+      const chunks = speechChunks(text);
+      if (chunks.length === 0) return;
       setSpeaking(true);
-      synth.speak(u);
+      chunks.forEach((chunk, i) => {
+        const u = new SpeechSynthesisUtterance(chunk);
+        u.voice = voice;
+        u.lang = voice.lang;
+        u.rate = rate;
+        if (i === chunks.length - 1) u.onend = () => setSpeaking(false);
+        u.onerror = () => setSpeaking(false);
+        synth.speak(u);
+      });
     },
     [voice, rate],
   );
 
-  return { available: voice === undefined ? null : voice !== null, speaking, speak, stop };
+  return { available: voice === undefined ? null : voice !== null, speaking, voiceName: voice?.name ?? null, betterVoice: voice ? isBetterVoice(voice) : false, speak, stop };
 }
