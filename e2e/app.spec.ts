@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 
 // The file hand-over uses the phone's share sheet when it accepts files. A test browser has
 // no share sheet, so these tests always take the ordinary download path.
@@ -25,7 +25,11 @@ test("cook a dish end to end, offline, with nothing leaving the device", async (
 
   // From here on there is no network at all, and nothing the app asks for may fail.
   const lost: string[] = [];
-  page.on("requestfailed", (r) => lost.push(`${r.method()} ${new URL(r.url()).pathname}`));
+  // WebKit also reports a look-ahead it dropped because she moved to another page ("cancelled");
+  // that is not a request the network failed to answer.
+  page.on("requestfailed", (r) => {
+    if (r.failure()?.errorText !== "cancelled") lost.push(`${r.method()} ${new URL(r.url()).pathname}`);
+  });
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toContainText("hôm nay nấu gì");
@@ -98,7 +102,7 @@ test("cook a dish end to end, offline, with nothing leaving the device", async (
   expect(lost, "requests that failed while offline").toEqual([]);
 });
 
-test("back up on one phone, restore on another", async ({ page, browser }, testInfo) => {
+test("back up on one phone, restore on another", async ({ page, newPhone }, testInfo) => {
   await noShareSheet(page);
   await page.goto("/cong-thuc/");
   await page.getByRole("link", { name: /Thịt kho trứng/ }).click();
@@ -127,7 +131,7 @@ test("back up on one phone, restore on another", async ({ page, browser }, testI
   await expect(page.getByText(/Lần sao lưu gần nhất: .* Mọi thứ đã được sao lưu\./)).toBeVisible();
 
   // "Another phone": a browser with empty storage.
-  const other = await browser.newContext({ locale: "vi-VN" });
+  const other = await newPhone();
   const p2 = await other.newPage();
   await p2.goto("/nhat-ky/");
   await expect(p2.getByText("Chưa có lần nấu nào")).toBeVisible();

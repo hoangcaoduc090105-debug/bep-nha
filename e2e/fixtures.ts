@@ -1,0 +1,56 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { test as base, type BrowserContext } from "@playwright/test";
+
+// Every test starts on a "phone" with empty storage, and may ask for a second one.
+//
+// In Chrome a phone is an ordinary throw-away browser context. WebKit cannot do that: in a
+// throw-away context it behaves like Safari's Private Browsing and refuses to store photos in
+// IndexedDB ("Error preparing Blob/File data to be stored in object store"). An app on the Home
+// Screen is not private, so on WebKit each phone gets its own profile folder on disk instead.
+
+type Fixtures = { newPhone: () => Promise<BrowserContext> };
+
+export const test = base.extend<Fixtures>({
+  newPhone: async ({ browser, browserName, playwright }, provide, testInfo) => {
+    const opened: BrowserContext[] = [];
+    const folders: string[] = [];
+    await provide(async () => {
+      const u = testInfo.project.use;
+      let context: BrowserContext;
+      if (browserName === "webkit") {
+        const dir = mkdtempSync(join(tmpdir(), "bep-nha-may-"));
+        folders.push(dir);
+        context = await playwright.webkit.launchPersistentContext(dir, {
+          viewport: u.viewport,
+          userAgent: u.userAgent,
+          deviceScaleFactor: u.deviceScaleFactor,
+          isMobile: u.isMobile,
+          hasTouch: u.hasTouch,
+          baseURL: u.baseURL,
+          locale: u.locale,
+          timezoneId: u.timezoneId,
+          serviceWorkers: u.serviceWorkers,
+        });
+      } else {
+        context = await browser.newContext({ locale: "vi-VN" });
+      }
+      opened.push(context);
+      return context;
+    });
+    for (const c of opened) await c.close().catch(() => {});
+    for (const dir of folders) rmSync(dir, { recursive: true, force: true });
+  },
+  // The first phone.
+  context: async ({ context, browserName, newPhone }, provide) => {
+    if (browserName !== "webkit") return provide(context);
+    await provide(await newPhone());
+  },
+  page: async ({ context, page, browserName }, provide) => {
+    if (browserName !== "webkit") return provide(page);
+    await provide(context.pages()[0] ?? (await context.newPage()));
+  },
+});
+
+export { expect, type Page } from "@playwright/test";

@@ -406,7 +406,8 @@ export async function abandonSession(id: string): Promise<void> {
 }
 
 /** "Nấu xong". Safe to call twice: the second call changes nothing. */
-export async function finishSession(id: string, feedback: { verdict: Verdict; note?: string }): Promise<void> {
+/** Ends a cooking session and puts it in the journal. `null` = finished without rating the meal. */
+export async function finishSession(id: string, feedback: { verdict: Verdict; note?: string } | null): Promise<void> {
   const db = getDb();
   await db.transaction("rw", db.sessions, async () => {
     const s = await db.sessions.get(id);
@@ -416,7 +417,7 @@ export async function finishSession(id: string, feedback: { verdict: Verdict; no
       status: "completed",
       finishedAt: nowIso(),
       timers: [],
-      feedback: { verdict: feedback.verdict, note: feedback.note?.trim() || undefined },
+      feedback: feedback && { verdict: feedback.verdict, note: feedback.note?.trim() || undefined },
     });
   });
   await touch();

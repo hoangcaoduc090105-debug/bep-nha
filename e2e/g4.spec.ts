@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 
 // G4: the recipe editor, dish photos and recipe packs — against the built site, phone size.
 
@@ -30,7 +30,7 @@ async function bigPhoto(page: Page): Promise<Buffer> {
 
 const field = (page: Page, label: string | RegExp) => page.getByLabel(label, { exact: typeof label === "string" });
 
-test("write a new dish with a photo, cook from it, send it to another phone", async ({ page, browser }, testInfo) => {
+test("write a new dish with a photo, cook from it, send it to another phone", async ({ page, newPhone }, testInfo) => {
   const outside: string[] = [];
   page.on("request", (r) => {
     const u = new URL(r.url());
@@ -193,7 +193,7 @@ test("write a new dish with a photo, cook from it, send it to another phone", as
   await expect(page.getByText(/Đây là tệp gửi món, không phải bản sao lưu/)).toBeVisible();
 
   // "Another phone", which has cooked one of its own dishes.
-  const other = await browser.newContext({ locale: "vi-VN" });
+  const other = await newPhone();
   const p2 = await other.newPage();
   await p2.goto("/cong-thuc/");
   await expect(p2.locator("main h3")).toHaveCount(10);

@@ -8,11 +8,11 @@ A private cooking web app for one Vietnamese family. It remembers how *our* fami
 
 ## Status (2026-11-21)
 
-**Working now (stages G1–G4; G4 is built and tested but not yet deployed):**
+**Working now (stages G1–G4, deployed; plus finishing a meal without a rating, built and tested but not yet deployed):**
 - Ten sample recipes; recipe list with search (no diacritics needed) and category filter.
 - Recipe page with servings scaling; adjust quantities → saved as "Bản nhà mình" with a reason, original kept; version history; switch back to the original.
 - Cooking mode: ingredient checklist, one step per screen, timers, read-aloud, screen wake lock, resume after closing.
-- Feedback after cooking; journal tied to the exact version cooked; favourites.
+- Feedback after cooking, or "Xong, không ghi nhận xét" to finish without rating (the meal is still in the journal; an unrated meal cannot approve a dish); journal tied to the exact version cooked; favourites.
 - Settings: text size, voice, how the app addresses the cook.
 - Backup and restore: one ZIP with all data and photos, checksums, full verification before anything is replaced, undo of the last restore, reminder after 7 days of unsaved changes.
 - "Xoá món" moves a dish to "Món đã xoá" (restorable).
@@ -26,21 +26,20 @@ A private cooking web app for one Vietnamese family. It remembers how *our* fami
 - **Nothing leaves the device:** the built site carries a content-security policy that makes the browser refuse connections to any other server (a YouTube video she chooses to play is the one exception, for a later stage).
 - **Deployed:** https://hoangcaoduc090105-debug.github.io/bep-nha/ — published by `.github/workflows/deploy.yml` on every push to `main`, after the full check passes.
 
-**Not built yet:** a photo after each cooking session · playing the YouTube video inside the app, timestamps per step · "Nhà đang có gì?", suggestions, equipment filter, taste profile, voice commands · weekly plan and shopping list. See [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md).
+**Not built, by decision (2026-11-21):** the goal is "mother opens the app, picks a dish and cooks", so most of G5 and all of G7 were dropped — a photo after each cooking session, "Nhà đang có gì?", suggestions, equipment filter, taste profile, voice commands, weekly plan, shopping list. Playing the YouTube video inside the app is kept for later, only if her recipes come from videos. See [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md).
 
 ### What has actually been checked
-- `npm run check`: type check, lint, 90 unit and data-rule tests, static build — all pass.
-- `npm run test:e2e`: 5 end-to-end tests in Google Chrome at phone size, against the built site — all pass:
+- `npm run check`: type check, lint, 97 unit and data-rule tests, static build — all pass.
+- `npm run test:e2e`: 6 end-to-end tests against the built site, each run twice — in Google Chrome at Pixel 7 size, and in WebKit (the engine Safari uses) at the size of mother's iPhone 14 Pro Max, 430 pt — 12 runs, all pass. WebKit here is Playwright's desktop build, **not Safari on a real iPhone**: it catches layout and engine differences, not the camera, the share sheet, sound or the screen lock.
   1. first visit, then **network switched off**: reload, search "ca kho", change servings, lower the fish sauce and save the family version, cook all six steps with a timer and a reload mid-cook, rate it, approve it, find it in the journal — with zero requests to any other server;
   2. cook and back up in one browser, then in a second, empty browser ("another phone"): a non-backup file is refused, the real backup shows its summary, restores, and the restore is undone;
   3. delete a dish and bring it back; largest text size without horizontal scroll;
   4. (G4) write a new dish with a 3000 × 2000 photo (stored as a 1600 px JPEG under 600 KB), typed and stepped amounts, a unit change, an inserted ingredient with its preview, a typed amount refused, a reload mid-way with the draft intact, the missing "Tránh…" and the wrong video link both reported; correct it in place while uncooked; cook it; edit it again into a new "Bản nhà mình"; send it as a file; the file is refused as a backup; a second browser refuses a non-pack, receives the dish with photo and both versions and no journal, receives it again with nothing added, and undoes the receipt; the full backup then counts 1 photo — with zero requests to any other server;
-  5. (G4) at the largest text size the editor has no horizontal scroll; a sample opened and saved untouched changes nothing; a real change to a sample becomes "Bản nhà mình" and the sample text stays.
-- G4 was looked at in the in-app browser at phone width (editor parts 1, 2 and the review). The other parts were exercised by the tests only.
-- While testing G4 a fault in the existing backup was found and fixed: with photos on the device, a real browser could not build the backup (photo bytes were read inside the database transaction). Before G4 no photo could exist, so no one was affected.
-- A build with a GitHub Pages style prefix (`/bep-nha`) was inspected: links, manifest and service worker all carry the prefix.
-- The live site was checked with `node e2e/live-check.mjs <address>`: it loads, becomes available offline, and with the network off it reloads, lists the ten dishes and starts cooking — with no request to any other server and no failed request.
-- **Not checked:** the G4 changes on the live site (not deployed yet) · the camera and photo library on an iPhone, and HEIC photos · sharing a recipe pack through the share sheet, and opening one received through Zalo or AirDrop (it has to be saved to Files first, then chosen in "Nhận món") · typing Vietnamese with the iPhone keyboard in the editor · any real phone · Safari · adding to the iPhone Home Screen · the iPhone share sheet for the backup file (the tests use the download path) · the alarm sound · read-aloud quality · screen readers.
+  5. (G4) at the largest text size the editor has no horizontal scroll; a sample opened and saved untouched changes nothing; a real change to a sample becomes "Bản nhà mình" and the sample text stays;
+  6. a dish is cooked and ended with "Xong, không ghi nhận xét" — it is in the journal, nothing is left "đang nấu dở", and neither approval nor adjustment is asked.
+- Two things the WebKit run showed, neither a fault in the app: (a) in a throw-away browser session WebKit behaves like Safari's Private Browsing and refuses to store photos in IndexedDB, so the tests give each WebKit "phone" a profile folder on disk (`e2e/fixtures.ts`) — **in a Private Browsing tab on an iPhone, adding a photo or receiving a dish with a photo will fail**; from the Home Screen it is not private; (b) WebKit reports look-ahead requests it dropped on navigation as "cancelled", which the offline test now ignores.
+- Checked by the owner on mother's iPhone 14 Pro Max (iOS 26.5): adding to the Home Screen and cooking step by step work. Read-aloud uses the phone's ordinary Vietnamese voice, accepted for now.
+- **Not checked:** finishing without a rating on the live site (not deployed yet) and on a real phone · **on mother's iPhone: the timer alarm with the silent switch on, the timer after the screen has been locked, whether the screen stays on while cooking** · the camera and photo library on an iPhone, and HEIC photos · sharing a recipe pack through the share sheet, and opening one received through Zalo or AirDrop (it has to be saved to Files first, then chosen in "Nhận món") · typing Vietnamese with the iPhone keyboard in the editor · real Safari (only Playwright's WebKit) · the iPhone share sheet for the backup file (the tests use the download path) · the alarm sound · read-aloud quality · screen readers.
 
 ### About the sample recipes
 The ten dishes are samples written for this app in the common Southern home style. **None has been cooked or verified by the family**, and each is labelled "Mẫu – chưa kiểm chứng" everywhere. A dish becomes "Gia đình đã duyệt" only when confirmed after a well-rated meal. Treat the quantities as a starting point to correct.
@@ -51,7 +50,7 @@ The ten dishes are samples written for this app in the common Southern home styl
 npm install
 npm run dev        # http://localhost:3000  (no offline mode in development)
 npm run check      # typecheck + lint + unit tests + static build (output in out/)
-npm run test:e2e   # builds, then runs the end-to-end tests in the installed Google Chrome
+npm run test:e2e   # builds, then runs the end-to-end tests in the installed Google Chrome and in WebKit (once: npx playwright install webkit)
 ```
 
 `/design` shows every base component. Generated files: design tokens (`node scripts/build-tokens.mjs` after editing `replica/design/tokens.json`), icons (`node scripts/build-icons.mjs` after editing `public/icon.svg`), and `out/sw.js` (written by the build).

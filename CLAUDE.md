@@ -57,7 +57,7 @@ Thiết kế cho người lớn tuổi, điện thoại dựng cạnh bếp. Ch�
 ```bash
 npm run dev        # http://localhost:3000 (không có offline ở chế độ này)
 npm run check      # kiểm tra kiểu + lint + kiểm thử + build tĩnh — phải qua trước khi báo xong
-npm run test:e2e   # build rồi chạy kiểm thử đầu-cuối bằng Google Chrome đã cài
+npm run test:e2e   # build rồi chạy kiểm thử đầu-cuối bằng Google Chrome đã cài và WebKit (một lần: npx playwright install webkit)
 node e2e/live-check.mjs https://hoangcaoduc090105-debug.github.io/bep-nha/   # kiểm tra trang thật sau khi triển khai
 ```
 
@@ -65,12 +65,16 @@ Lưu ý môi trường: không có `gh`; khung trình duyệt trong ứng dụng
 
 ## Lộ trình
 
-Xong: G1 (lát cắt đầu), G2 (P0 + sao lưu), G3 (cài đặt, offline, triển khai), G4 (trình soạn công thức, một ảnh mỗi món, nguồn và link YouTube, gói công thức). G4 còn thiếu điều kiện "xong" của lộ trình: nhập một công thức thật của mẹ và gửi sang máy mẹ.
-Tiếp theo — **G5** (ảnh sau mỗi lần nấu, phát video YouTube trong ứng dụng và mốc thời gian theo bước, Nhà đang có gì, gợi ý, lọc theo thiết bị, hồ sơ khẩu vị, lệnh giọng nói có phương án thay thế) · G6 (thử trên iPhone thật, `TEST_PLAN.md` mục 7) · G7 (thực đơn tuần, danh sách mua sắm).
+Mục tiêu đã chốt 2026-11-21: **mẹ chỉ mở ứng dụng, chọn món và nấu theo**; soạn món, gửi món, sao lưu là việc của chủ dự án. Đừng đề xuất việc gì bắt mẹ làm thêm.
+
+Xong: G1–G4, cộng "Hoàn thiện cho mẹ": **nấu xong không cần đánh giá** (`finishSession(id, null)`), kiểm thử đầu-cuối chạy cả Chrome lẫn WebKit cỡ iPhone 14 Pro Max.
+Còn lại: (1) ba phép thử ở bếp trên máy mẹ; (2) nhập món thật của mẹ và gửi sang máy mẹ; sau đó mới quyết số phận 10 món mẫu.
+Đã bỏ (đừng đề xuất lại nếu không được hỏi): "chế độ gọn" ẩn nút quản lý món trên máy mẹ (đã làm rồi gỡ 2026-11-21, chủ dự án thấy không cần), ảnh sau mỗi lần nấu, Nhà đang có gì, gợi ý, lọc theo thiết bị, hồ sơ khẩu vị, lệnh giọng nói, mốc thời gian video, thực đơn tuần, danh sách mua sắm, sao lưu Google Drive. Để sau, chỉ khi món của mẹ viết từ video: phát YouTube trong ứng dụng. Giọng đọc: chấp nhận giọng thường của iPhone, không làm thêm trừ khi được yêu cầu.
 Chi tiết: `FEATURE_ROADMAP.md`, `PRD.md` (mục 15 là mô hình hiện hành; các mục 13–14 về đăng nhập và đám mây đã bị thay thế).
 
 ## Còn mở
 
-- Chưa thử trên iPhone thật: thêm vào màn hình chính, giọng đọc, chuông hẹn giờ, giữ màn hình sáng, bảng chia sẻ khi sao lưu và khi gửi món, chụp/chọn ảnh (kể cả ảnh HEIC), nhận tệp gửi món qua Zalo/AirDrop (phải "Lưu vào Tệp" rồi chọn trong "Nhận món"), gõ tiếng Việt trong trình soạn.
-- Máy mẹ: iPhone 14 Pro Max, iOS 26.5 (chủ dự án cho biết 2026-11-21). Màn hình rộng 430 pt; kiểm thử tự động hiện chạy ở cỡ Pixel 7 (412 pt) trên Chrome, chưa chạy trên WebKit/Safari.
+- Đã thử trên máy mẹ (chủ dự án, 2026-11-21): thêm vào màn hình chính, nấu theo từng bước.
+- Chưa thử trên iPhone thật: chuông hẹn giờ khi gạt im lặng, hẹn giờ sau khi khoá màn hình, giữ màn hình sáng, bảng chia sẻ khi sao lưu và khi gửi món, chụp/chọn ảnh (kể cả ảnh HEIC), nhận tệp gửi món qua Zalo/AirDrop (phải "Lưu vào Tệp" rồi chọn trong "Nhận món"), gõ tiếng Việt trong trình soạn.
+- Máy mẹ: iPhone 14 Pro Max, iOS 26.5 (chủ dự án cho biết 2026-11-21). Màn hình rộng 430 pt; kiểm thử đầu-cuối chạy trên Chrome (Pixel 7) và WebKit của Playwright (cỡ iPhone 14 Pro Max) — không phải Safari thật. WebKit ở phiên tạm thời không lưu được ảnh vào IndexedDB (giống Duyệt riêng tư), nên `e2e/fixtures.ts` cho mỗi "máy" một hồ sơ trên đĩa; bài kiểm thử mới phải lấy `test` từ `./fixtures` và dùng `newPhone()` thay cho `browser.newContext()`.
 - 10 công thức mẫu chưa ai nấu thử.

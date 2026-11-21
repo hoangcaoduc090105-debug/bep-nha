@@ -25,7 +25,8 @@ import { formatAmount, formatMetric } from "@/lib/quantity";
 import { VERDICT_LABELS, versionName } from "@/lib/labels";
 
 type Loaded = { session: CookingSession; recipe: Recipe; version: RecipeVersion };
-type Finished = { recipe: Recipe; sessionId: string; verdict: FeedbackId; approved: boolean };
+/** `verdict` is null when she finished without rating the meal. */
+type Finished = { recipe: Recipe; sessionId: string; verdict: FeedbackId | null; approved: boolean };
 
 export default function CookingPage() {
   const loaded = useLiveQuery(async (): Promise<Loaded | null> => {
@@ -243,13 +244,13 @@ function FinishForm({ header, session, recipe, onBack, onFinished }: { header: R
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const save = async () => {
-    if (!verdict) return;
+  const save = async (rated: boolean) => {
+    if (rated && !verdict) return;
     setSaving(true);
     setError(null);
     try {
-      await finishSession(session.id, { verdict, note });
-      onFinished({ recipe, sessionId: session.id, verdict, approved: recipe.verification === "family_approved" });
+      await finishSession(session.id, rated && verdict ? { verdict, note } : null);
+      onFinished({ recipe, sessionId: session.id, verdict: rated ? verdict : null, approved: recipe.verification === "family_approved" });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Chưa lưu được. Mẹ thử lại nhé.");
       setSaving(false);
@@ -266,9 +267,12 @@ function FinishForm({ header, session, recipe, onBack, onFinished }: { header: R
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={500} placeholder="Ví dụ: ba khen thơm, lần sau kho lâu hơn chút" className="rounded-md border-2 border-border-input bg-surface p-4 text-lg placeholder:text-text-muted" />
       </label>
       {error && <Banner kind="error">{error}</Banner>}
-      {!verdict && <p className="text-text-muted">Mẹ chọn một ý ở trên rồi bấm Lưu.</p>}
-      <Button size="lg" fullWidth disabled={!verdict} loading={saving} onClick={() => void save()}>
+      {!verdict && <p className="text-text-muted">Mẹ chọn một ý ở trên rồi bấm Lưu. Không muốn nhận xét thì bấm “Xong, không ghi nhận xét”.</p>}
+      <Button size="lg" fullWidth disabled={!verdict} loading={saving} onClick={() => void save(true)}>
         Lưu vào nhật ký
+      </Button>
+      <Button variant="secondary" fullWidth disabled={saving} onClick={() => void save(false)}>
+        Xong, không ghi nhận xét
       </Button>
       <Button variant="quiet" onClick={onBack}>
         Quay lại bước cuối
@@ -280,14 +284,13 @@ function FinishForm({ header, session, recipe, onBack, onFinished }: { header: R
 function AfterCooking({ finished, onChange }: { finished: Finished; onChange: (f: Finished | null) => void }) {
   const { recipe, verdict, sessionId } = finished;
   const good = verdict === "rat_ngon" || verdict === "vua_mieng";
+  const rated = verdict != null;
   const reason = verdict === "hoi_man" ? "Bớt mặn" : verdict === "hoi_ngot" ? "Bớt ngọt" : "";
   const linkCls = "inline-flex min-h-target-lg items-center justify-center rounded-md px-6 text-lg font-semibold";
   return (
     <AppShell tab="cooking">
       <h1 className="text-display">Đã lưu vào nhật ký</h1>
-      <p className="text-lg font-normal">
-        {recipe.name}: {VERDICT_LABELS[verdict]}.
-      </p>
+      <p className="text-lg font-normal">{rated ? `${recipe.name}: ${VERDICT_LABELS[verdict]}.` : `${recipe.name}: đã nấu xong.`}</p>
 
       {good && recipe.verification !== "family_approved" && !finished.approved && (
         <section className="flex flex-col gap-3 rounded-lg bg-secondary-soft p-4">
@@ -297,7 +300,7 @@ function AfterCooking({ finished, onChange }: { finished: Finished; onChange: (f
       )}
       {finished.approved && <Banner>Đã ghi nhận: gia đình đã duyệt món này.</Banner>}
 
-      {!good && (
+      {rated && !good && (
         <section className="flex flex-col gap-3 rounded-lg bg-accent-soft p-4">
           <p className="text-lg font-normal">Mẹ có muốn chỉnh lại lượng gia vị cho lần sau không? Bản gốc vẫn được giữ nguyên.</p>
           <Link href={`/cong-thuc/chinh/?id=${recipe.id}&ly_do=${encodeURIComponent(reason)}&lan_nau=${sessionId}`} className={`${linkCls} bg-accent text-on-accent`}>

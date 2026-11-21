@@ -112,6 +112,18 @@ describe("cooking sessions and journal", () => {
     expect(journal).toHaveLength(1);
     expect(journal[0].session.feedback?.verdict).toBe("rat_ngon");
   });
+  it("a meal can be finished without rating it: it is in the journal, and cannot approve the dish", async () => {
+    const b = await firstRecipe();
+    const s = await repo.startSession(b.recipe.id, b.original.id, 4);
+    await repo.finishSession(s.id, null);
+    expect(await repo.getActiveSession()).toBeUndefined();
+    const [entry] = await repo.listJournal();
+    expect(entry.session.id).toBe(s.id);
+    expect(entry.session.feedback).toBeNull();
+    expect(entry.version?.id).toBe(b.original.id);
+    await expect(repo.confirmFamilyApproved(b.recipe.id, s.id)).rejects.toThrow(repo.RuleError);
+    await expect(repo.deleteVersion(b.original.id)).rejects.toThrow(repo.RuleError);
+  });
   it("resumes the same session instead of starting a second one", async () => {
     const b = await firstRecipe();
     const s1 = await repo.startSession(b.recipe.id, b.original.id, 4);
