@@ -23,7 +23,9 @@ test("cook a dish end to end, offline, with nothing leaving the device", async (
   await expect(page.getByRole("heading", { level: 1 })).toContainText("hôm nay nấu gì");
   await waitForOfflineReady(page);
 
-  // From here on there is no network at all.
+  // From here on there is no network at all, and nothing the app asks for may fail.
+  const lost: string[] = [];
+  page.on("requestfailed", (r) => lost.push(`${r.method()} ${new URL(r.url()).pathname}`));
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toContainText("hôm nay nấu gì");
@@ -93,6 +95,7 @@ test("cook a dish end to end, offline, with nothing leaving the device", async (
   await expect(entry).toContainText("Cả nhà khen");
 
   expect(outside, "requests to other servers").toEqual([]);
+  expect(lost, "requests that failed while offline").toEqual([]);
 });
 
 test("back up on one phone, restore on another", async ({ page, browser }, testInfo) => {

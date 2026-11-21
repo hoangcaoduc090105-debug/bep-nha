@@ -55,19 +55,22 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const request = event.request;
-  if (request.method !== "GET") return;
+  // HEAD is how the app asks "does this page exist?" before moving to it; it must also be
+  // answered from the device, or the question fails when there is no network.
+  if (request.method !== "GET" && request.method !== "HEAD") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || !url.pathname.startsWith(BASE + "/")) return;
   event.respondWith(
     (async () => {
       const cache = await caches.open(CACHE);
       // Recipe pages differ only by ?id=…, so the query string is ignored when matching.
-      let hit = await cache.match(request, { ignoreSearch: true });
-      if (!hit && request.mode === "navigate") {
+      // Matching is done by address (a stored page answers both GET and HEAD).
+      let hit = await cache.match(url.href, { ignoreSearch: true });
+      if (!hit && (request.mode === "navigate" || request.method === "HEAD")) {
         const dir = url.pathname.endsWith("/") ? url.pathname : url.pathname + "/";
         hit = await cache.match(dir + "index.html");
       }
-      if (hit) return hit;
+      if (hit) return request.method === "HEAD" ? new Response(null, { status: 200, headers: hit.headers }) : hit;
       try {
         return await fetch(request);
       } catch {

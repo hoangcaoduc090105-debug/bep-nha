@@ -18,7 +18,7 @@ A private cooking web app for one Vietnamese family. It remembers how *our* fami
 - "Xoá món" moves a dish to "Món đã xoá" (restorable).
 - **Installable and offline:** web manifest, app icon, and a service worker that stores the whole app (about 1.6 MB) on the device. An update is offered with one tap.
 - **Nothing leaves the device:** the built site carries a content-security policy that makes the browser refuse connections to any other server (a YouTube video she chooses to play is the one exception, for a later stage).
-- A GitHub Pages workflow is written (`.github/workflows/deploy.yml`). **The app is not deployed yet** — there is no Git repository.
+- **Deployed:** https://hoangcaoduc090105-debug.github.io/bep-nha/ — published by `.github/workflows/deploy.yml` on every push to `main`, after the full check passes.
 
 **Not built yet:** recipe editor and photos · recipe packs · "Nhà đang có gì?", suggestions, equipment filter, taste profile, voice commands · weekly plan and shopping list. See [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md).
 
@@ -29,7 +29,8 @@ A private cooking web app for one Vietnamese family. It remembers how *our* fami
   2. cook and back up in one browser, then in a second, empty browser ("another phone"): a non-backup file is refused, the real backup shows its summary, restores, and the restore is undone;
   3. delete a dish and bring it back; largest text size without horizontal scroll.
 - A build with a GitHub Pages style prefix (`/bep-nha`) was inspected: links, manifest and service worker all carry the prefix.
-- **Not checked:** an actual deployment on GitHub Pages · any real phone · Safari · adding to the iPhone Home Screen · the iPhone share sheet for the backup file (the tests use the download path) · the alarm sound · read-aloud quality · screen readers.
+- The live site was checked with `node e2e/live-check.mjs <address>`: it loads, becomes available offline, and with the network off it reloads, lists the ten dishes and starts cooking — with no request to any other server and no failed request.
+- **Not checked:** any real phone · Safari · adding to the iPhone Home Screen · the iPhone share sheet for the backup file (the tests use the download path) · the alarm sound · read-aloud quality · screen readers.
 
 ### About the sample recipes
 The ten dishes are samples written for this app in the common Southern home style. **None has been cooked or verified by the family**, and each is labelled "Mẫu – chưa kiểm chứng" everywhere. A dish becomes "Gia đình đã duyệt" only when confirmed after a well-rated meal. Treat the quantities as a starting point to correct.
@@ -45,17 +46,16 @@ npm run test:e2e   # builds, then runs the end-to-end tests in the installed Goo
 
 `/design` shows every base component. Generated files: design tokens (`node scripts/build-tokens.mjs` after editing `replica/design/tokens.json`), icons (`node scripts/build-icons.mjs` after editing `public/icon.svg`), and `out/sw.js` (written by the build).
 
-## Deploy to GitHub Pages (not done yet)
+## Deployment
 
-1. Create a repository on GitHub and push this folder to its `main` branch.
-2. In the repository: Settings → Pages → Build and deployment → Source: **GitHub Actions**.
-3. The workflow runs the full check and publishes `out/`. The link is `https://<user>.github.io/<repository>/`.
+Repository: https://github.com/hoangcaoduc090105-debug/bep-nha · Pages source: GitHub Actions.
+To publish a change: commit and `git push`. The workflow runs the full check and publishes `out/`; a failing test stops the deployment. Phones that already have the app show "Bếp Nhà có bản mới — Cập nhật".
 
 On a free GitHub account, Pages needs a **public** repository. The repository holds only the app and the sample recipes; the family's own recipes, history and photos stay on the phone and are never in it.
 
 ## Put it on mother's iPhone
 
-1. Open the link in Safari.
+1. Open https://hoangcaoduc090105-debug.github.io/bep-nha/ in Safari.
 2. Share button → "Thêm vào Màn hình chính". Open Bếp Nhà from the new icon from then on — the Home Screen copy has its own storage, and Safari does not clear it after a week.
 3. Cài đặt in the app shows whether it is running from the Home Screen.
 4. After adding or adjusting recipes: Cài đặt → Sao lưu ngay, and keep the file in iCloud Drive.
