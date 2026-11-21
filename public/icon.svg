@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Bếp Nhà app icon: a clay pot (tộ) with steam. Original artwork for this app.
+       Full-bleed background and artwork inside the central 60%, so it also works as a maskable icon. -->
+  <rect width="512" height="512" fill="#A9471F"/>
+  <g fill="none" stroke="#FBF6EC" stroke-width="18" stroke-linecap="round">
+    <path d="M206 150c-14 16 14 30 0 48"/>
+    <path d="M256 138c-14 18 14 34 0 54"/>
+    <path d="M306 150c-14 16 14 30 0 48"/>
+  </g>
+  <g fill="#FBF6EC">
+    <rect x="236" y="214" width="40" height="22" rx="11"/>
+    <path d="M150 262c0-18 14-30 32-30h148c18 0 32 12 32 30z"/>
+    <rect x="108" y="270" width="296" height="24" rx="12"/>
+    <path d="M140 304h232v22c0 44-36 62-80 62h-72c-44 0-80-18-80-62z"/>
+  </g>
+</svg>

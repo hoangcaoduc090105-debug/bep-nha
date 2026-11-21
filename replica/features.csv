@@ -1,0 +1,56 @@
+feature,area,priority,original,clone,notes
+Search recipes by name (works without diacritics),library,must,yes,no,P0
+Recipe list with photo time and servings,library,must,yes,no,P0
+Browse by category (kho chiên xào canh hấp luộc nướng gỏi sáng gia đình tráng miệng),library,must,partial,no,P0; Cookpad uses tags and search not fixed categories
+Recipe detail: photo description times servings difficulty,recipe,must,yes,no,P0; difficulty not seen on Cookpad
+Structured ingredients with household and metric quantities,recipe,must,no,no,P0; Cookpad ingredients are free text
+Ingredients split into food and seasonings,recipe,must,no,no,P0
+Equipment and utensils per recipe,recipe,must,no,no,P0
+Numbered steps with photos,recipe,must,yes,no,P0
+Per step: done-when sign mistake to avoid troubleshooting,recipe,must,no,no,P0
+Change number of servings and rescale quantities,recipe,must,not verified,no,P0
+Original and family versions of every recipe,versions,must,no,no,P0; the core of the product
+Adjust quantities and save as a family version with a reason,versions,must,not verified,no,P0; App Store claims quantity edits - mechanism unknown
+Compare original and family version side by side,versions,must,no,no,P0
+Restore the original version,versions,must,no,no,P0
+Version history that is never overwritten,versions,must,no,no,P0
+Cooking mode: one step per screen with very large text,cooking,must,not verified,no,P0
+Cooking timers with sound that survive screen lock,cooking,must,not verified,no,P0
+Keep the screen awake while cooking,cooking,must,not verified,no,P0
+Read steps and ingredients aloud in Vietnamese,voice,must,not verified,no,P0
+Record each cooking session against the exact version,journal,must,no,no,P0; closest Cookpad idea is the cooksnap
+Feedback after cooking and offer to save as family version,journal,must,no,no,P0
+Cooking journal with history per recipe,journal,must,partial,no,P0; Cookpad lists cooksnaps by date
+Favourites,library,should,yes,no,P0-lite; Cookpad saves into library and folders
+Home with greeting and today's suggestions,home,should,partial,no,P1; Cookpad home is trending and contests
+Suggestions that avoid recently cooked dishes,home,should,no,no,P1; rule based - no AI
+What can I cook with what I have,home,should,yes,no,P1; Cookpad app claims fridge based suggestions
+Vietnamese voice commands,voice,should,not verified,no,P1; browser dependent - large button fallback always present
+Filter by equipment the kitchen has,library,should,partial,no,P1; Cookpad FAQ mentions searching by tool
+Family taste profile (5 sliders),versions,should,no,no,P1; suggestions only - never rewrites recipes
+YouTube link embed and step timestamps,video,should,partial,no,P1; Cookpad steps can hold a video
+Source attribution with fidelity label,recipe,should,partial,no,P1; Cookpad shows the author
+Add edit archive and delete recipes (same account),management,should,yes,no,M3; Cookpad editor not seen
+Upload recipe and step photos,management,should,yes,no,M3
+Photo of the finished dish in the journal,journal,should,yes,no,P1; like a private cooksnap
+Install to Home Screen and work offline (PWA),platform,must,no,no,G3; also protects data from Safari's 7-day clearing
+Weekly meal planner,planner,could,yes,no,P2; in Cookpad app per App Store
+Shopping list from planned recipes,planner,could,yes,no,P2; in Cookpad app per App Store
+Data and photos stored on the device (IndexedDB),platform,must,no,no,G1; local-first like My Gym Progress
+Backup package and restore with integrity check,platform,must,partial,no,G2
+Print or copy a recipe as text,recipe,could,yes,no,P2
+Multiple named family versions per recipe,versions,could,no,no,P2 UI; the schema supports it from day one
+Recipe folders or collections,library,could,yes,no,P2; categories and favourites cover the need for one family
+Optional AI help to structure a recipe from notes,management,could,yes,no,P2; Cookpad has AI import
+Public recipe publishing,social,skip,yes,skip,private family cookbook
+Cooksnaps comments reactions follows,social,skip,yes,skip,no community
+Contests rankings trending keywords,social,skip,yes,skip,no community
+Premium subscription and paywalls,business,skip,yes,skip,nothing to sell
+Social login (Google Apple Facebook),account,skip,yes,skip,one account created by hand
+Accounts sign-in cloud sync between devices,account,skip,yes,skip,local-first decision
+Import from web Instagram TikTok X,import,skip,yes,skip,copyright risk and not needed
+Photo to recipe by AI,import,skip,yes,skip,AI dependency excluded from first release
+Auto translation of foreign recipes,import,skip,yes,skip,Vietnamese only
+Share to social networks,social,skip,yes,skip,private
+Cookpad recipe content photos and branding,content,skip,yes,skip,owned by Cookpad and its users (terms s11 s25)
+Ads or tracking,business,skip,no,skip,private family data

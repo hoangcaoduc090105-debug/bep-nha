@@ -1,0 +1,34 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+@theme inline {
+  --font-sans: var(--font-be-vietnam), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Text size setting (Cài đặt). Everything is sized in rem, so the whole interface scales. */
+html { font-size: 100%; }
+html[data-text-scale="rat_lon"] { font-size: 115%; }
+html[data-text-scale="cuc_lon"] { font-size: 130%; }
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--text-base--line-height);
+  -webkit-text-size-adjust: 100%;
+}
+
+/* One focus style everywhere: 3px ring, clearly visible on ivory and on white. */
+:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Timer digits and quantities must not jiggle as they change. */
+.tabular { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
