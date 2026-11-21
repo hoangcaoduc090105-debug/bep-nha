@@ -17,6 +17,8 @@ export const DEFAULTS = {
   textScale: "lon" as TextScale,
   voiceRate: 0.9,
   autoRead: false,
+  /** The voice chosen in Cài đặt; null = let the app pick the best one. */
+  voiceURI: null as string | null,
   addressAs: "mẹ",
 };
 

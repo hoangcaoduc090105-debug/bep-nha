@@ -4,11 +4,11 @@
 // Whether a Vietnamese voice exists depends on the device, so it is detected, never assumed.
 
 import { useCallback, useEffect, useState } from "react";
-import { isBetterVoice, pickVietnameseVoice, speechChunks } from "./text";
+import { isBetterVoice, speechChunks, vietnameseVoices } from "./text";
 
-function findVietnameseVoice(): SpeechSynthesisVoice | null {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-  return pickVietnameseVoice(window.speechSynthesis.getVoices());
+function findVietnameseVoices(): SpeechSynthesisVoice[] {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return [];
+  return vietnameseVoices(window.speechSynthesis.getVoices());
 }
 
 export type Speech = {
@@ -18,21 +18,25 @@ export type Speech = {
   /** The voice in use, and whether it is one of the better-sounding kinds. */
   voiceName: string | null;
   betterVoice: boolean;
+  /** Every Vietnamese voice the device offers to the app, best first. */
+  voices: SpeechSynthesisVoice[];
   speak: (text: string) => void;
   stop: () => void;
 };
 
-export function useSpeech(rate = 0.9): Speech {
-  const [voice, setVoice] = useState<SpeechSynthesisVoice | null | undefined>(undefined);
+/** `preferredURI` is the voice she chose in Cài đặt; without it (or if it is gone) the best one is used. */
+export function useSpeech(rate = 0.9, preferredURI: string | null = null): Speech {
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[] | undefined>(undefined);
+  const voice = voices === undefined ? undefined : (voices.find((v) => v.voiceURI === preferredURI) ?? voices[0] ?? null);
   const [speaking, setSpeaking] = useState(false);
 
   useEffect(() => {
     if (!("speechSynthesis" in window)) {
-      const t = setTimeout(() => setVoice(null), 0);
+      const t = setTimeout(() => setVoices([]), 0);
       return () => clearTimeout(t);
     }
     const synth = window.speechSynthesis;
-    const load = () => setVoice(findVietnameseVoice());
+    const load = () => setVoices(findVietnameseVoices());
     // Voices arrive asynchronously on most browsers. If none has appeared after a moment,
     // conclude that this device has no Vietnamese voice.
     const first = setTimeout(load, 0);
@@ -73,5 +77,5 @@ export function useSpeech(rate = 0.9): Speech {
     [voice, rate],
   );
 
-  return { available: voice === undefined ? null : voice !== null, speaking, voiceName: voice?.name ?? null, betterVoice: voice ? isBetterVoice(voice) : false, speak, stop };
+  return { available: voice === undefined ? null : voice !== null, speaking, voiceName: voice?.name ?? null, betterVoice: voice ? isBetterVoice(voice) : false, voices: voices ?? [], speak, stop };
 }

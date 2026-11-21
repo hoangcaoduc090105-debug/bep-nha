@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { forSpeech, isBetterVoice, pickVietnameseVoice, speechChunks } from "@/features/voice/text";
+import { forSpeech, isBetterVoice, pickVietnameseVoice, speechChunks, vietnameseVoices, voiceKind } from "@/features/voice/text";
 
 describe("text prepared for reading aloud", () => {
   it("turns symbols into words", () => {
@@ -27,6 +27,10 @@ describe("choosing a voice", () => {
     expect(pickVietnameseVoice([enhanced, compact])).toBe(enhanced);
     expect(isBetterVoice(enhanced)).toBe(true);
     expect(isBetterVoice(compact)).toBe(false);
+  });
+  it("lists every Vietnamese voice, best first, and names its kind", () => {
+    expect(vietnameseVoices([english, compact, enhanced])).toEqual([enhanced, compact]);
+    expect([compact, enhanced].map(voiceKind)).toEqual(["thường", "nâng cao"]);
   });
   it("uses what there is, and never a voice of another language", () => {
     expect(pickVietnameseVoice([english, compact])).toBe(compact);

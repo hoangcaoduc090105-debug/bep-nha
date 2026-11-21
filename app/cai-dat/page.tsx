@@ -16,6 +16,7 @@ import { BackupError, createBackup, handOver, inspectBackup, latestRestorePoint,
 import { formatDateTime } from "@/lib/labels";
 import { DEFAULTS, TEXT_SCALES, VOICE_RATES, type TextScale } from "@/lib/settings";
 import { useSpeech } from "@/features/voice/tts";
+import { voiceKind } from "@/features/voice/text";
 
 type Notice = { kind: "info" | "error"; text: string } | null;
 
@@ -33,6 +34,7 @@ export default function SettingsPage() {
     textScale: await getSetting<TextScale>("textScale", DEFAULTS.textScale),
     voiceRate: await getSetting("voiceRate", DEFAULTS.voiceRate),
     autoRead: await getSetting("autoRead", DEFAULTS.autoRead),
+    voiceURI: await getSetting("voiceURI", DEFAULTS.voiceURI),
     addressAs: await getSetting("addressAs", DEFAULTS.addressAs),
     lastBackupAt: await getSetting<string | null>("lastBackupAt", null),
     unsavedSince: await getSetting<string | null>("unsavedSince", null),
@@ -67,7 +69,7 @@ export default function SettingsPage() {
             <Chip selected={settings.autoRead} onClick={() => void setSetting("autoRead", !settings.autoRead)}>
               Tự đọc khi sang bước mới
             </Chip>
-            <VoiceCheck rate={settings.voiceRate} />
+            <VoiceCheck rate={settings.voiceRate} chosenURI={settings.voiceURI} />
           </Section>
 
           <Section title="Cách xưng hô">
@@ -100,21 +102,45 @@ export default function SettingsPage() {
 const VOICE_SAMPLE = "Bước 2. Ướp cá. Cho cá vào tô. Thêm 1 muỗng canh rưỡi nước mắm và nửa muỗng cà phê tiêu. Được khi cá ngấm gia vị, sau khoảng 15 phút.";
 
 /** Says which voice the phone gives the app, lets her hear it, and explains how to get a better one. */
-function VoiceCheck({ rate }: { rate: number }) {
-  const speech = useSpeech(rate);
+function VoiceCheck({ rate, chosenURI }: { rate: number; chosenURI: string | null }) {
+  const speech = useSpeech(rate, chosenURI);
   if (speech.available === null) return null;
   if (!speech.available) return <Banner>Máy này chưa có giọng đọc tiếng Việt, nên nút “Đọc” chưa dùng được.</Banner>;
+  const current = speech.voices.find((v) => v.voiceURI === chosenURI) ?? speech.voices[0];
   return (
     <>
-      <p>
-        Đang dùng giọng: {speech.voiceName} ({speech.betterVoice ? "loại hay hơn" : "loại thường"}).
-      </p>
+      {speech.voices.length > 1 ? (
+        <>
+          <p>Điện thoại có {speech.voices.length} giọng tiếng Việt. Mẹ chọn giọng rồi bấm “Nghe thử”:</p>
+          <div role="radiogroup" aria-label="Giọng đọc" className="flex flex-wrap gap-3">
+            {speech.voices.map((v) => (
+              <Chip key={v.voiceURI} selected={v.voiceURI === current.voiceURI} onClick={() => void setSetting("voiceURI", v.voiceURI)}>
+                {v.name} ({voiceKind(v)})
+              </Chip>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p>
+          Đang dùng giọng: {current.name} ({voiceKind(current)}). Điện thoại chỉ đưa cho ứng dụng một giọng tiếng Việt này.
+        </p>
+      )}
       <Button variant="secondary" className="self-start" icon={<Volume2 aria-hidden className="size-6" />} onClick={() => (speech.speaking ? speech.stop() : speech.speak(VOICE_SAMPLE))}>
         {speech.speaking ? "Dừng đọc" : "Nghe thử"}
       </Button>
       {!speech.betterVoice && (
-        <p className="text-text-muted">Giọng đọc là giọng có sẵn của điện thoại. Muốn nghe hay hơn: mở Cài đặt của iPhone, vào Trợ năng, tìm phần giọng đọc tiếng Việt và tải về giọng loại “Nâng cao” (miễn phí). Tải xong, đóng hẳn Bếp Nhà rồi mở lại.</p>
+        <p className="text-text-muted">Giọng đọc là giọng có sẵn của điện thoại. Giọng “Nâng cao” tải trong Cài đặt của iPhone chỉ dùng được ở đây nếu iPhone cho phép; khi được, nó sẽ hiện thêm trong danh sách này.</p>
       )}
+      <details className="text-sm text-text-muted">
+        <summary className="inline-flex min-h-12 cursor-pointer items-center underline">Chi tiết kỹ thuật về giọng đọc</summary>
+        <ul className="flex list-disc flex-col gap-1 pl-6" data-testid="giong-doc-chi-tiet">
+          {speech.voices.map((v) => (
+            <li key={v.voiceURI} className="break-all">
+              {v.name} · {v.lang} · {v.voiceURI}
+            </li>
+          ))}
+        </ul>
+      </details>
     </>
   );
 }

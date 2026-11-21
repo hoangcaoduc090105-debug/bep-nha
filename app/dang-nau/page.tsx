@@ -64,8 +64,8 @@ function Cooking({ session, recipe, version, onFinished }: Loaded & { onFinished
   const total = version.steps.length;
   const stepNo = session.currentStep;
   const ingredients = scaledIngredients(version, session.servings);
-  const voice = useLiveQuery(async () => ({ rate: await getSetting("voiceRate", DEFAULTS.voiceRate), autoRead: await getSetting("autoRead", DEFAULTS.autoRead) }), []);
-  const speech = useSpeech(voice?.rate ?? DEFAULTS.voiceRate);
+  const voice = useLiveQuery(async () => ({ rate: await getSetting("voiceRate", DEFAULTS.voiceRate), autoRead: await getSetting("autoRead", DEFAULTS.autoRead), uri: await getSetting("voiceURI", DEFAULTS.voiceURI) }), []);
+  const speech = useSpeech(voice?.rate ?? DEFAULTS.voiceRate, voice?.uri ?? null);
   const wakeLockHeld = useWakeLock(true);
   const [askAbandon, setAskAbandon] = useState(false);
 

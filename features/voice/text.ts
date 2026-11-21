@@ -60,4 +60,15 @@ export function pickVietnameseVoice<T extends VoiceInfo>(voices: T[]): T | null 
   return vi.reduce((best, v) => (voiceScore(v) > voiceScore(best) ? v : best));
 }
 
+/** All Vietnamese voices on the device, best first. */
+export function vietnameseVoices<T extends VoiceInfo>(voices: T[]): T[] {
+  return voices.filter((v) => v.lang.toLowerCase().replace("_", "-").startsWith("vi")).sort((a, b) => voiceScore(b) - voiceScore(a));
+}
+
+/** "thường", "nâng cao" or "cao cấp", as far as the device tells. */
+export function voiceKind(v: VoiceInfo): string {
+  const s = voiceScore(v);
+  return s >= 30 ? "cao cấp" : s >= 20 ? "nâng cao" : "thường";
+}
+
 export const isBetterVoice = (v: VoiceInfo) => voiceScore(v) >= 20;
