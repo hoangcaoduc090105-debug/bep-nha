@@ -10,16 +10,19 @@ import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { SearchField } from "@/components/ui/search-field";
 import { EmptyState } from "@/components/ui/states";
-import { listCategories } from "@/data/repo";
+import { listCategories, listMainIngredients } from "@/data/repo";
 
 export default function RecipesPage() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | undefined>(undefined);
+  const [main, setMain] = useState<string | undefined>(undefined);
   const categories = useLiveQuery(() => listCategories(), []);
-  const filtered = query !== "" || category !== undefined;
+  const mains = useLiveQuery(() => listMainIngredients(), []);
+  const filtered = query !== "" || category !== undefined || main !== undefined;
   const reset = () => {
     setQuery("");
     setCategory(undefined);
+    setMain(undefined);
   };
   return (
     <AppShell tab="recipes">
@@ -40,9 +43,23 @@ export default function RecipesPage() {
           ))}
         </div>
       )}
+      {mains && mains.length > 1 && (
+        <div role="group" aria-label="Nguyên liệu chính" className="flex flex-col gap-2">
+          <p className="font-medium text-text-muted">Nấu từ</p>
+          <div className="flex flex-wrap gap-3">
+            {mains.map((m) => (
+              <Chip key={m} selected={main === m} onClick={() => setMain(main === m ? undefined : m)}>
+                {m}
+              </Chip>
+            ))}
+          </div>
+        </div>
+      )}
       <RecipeList
         query={query}
         category={category}
+        mainIngredient={main}
+        grouped={query === "" && category === undefined}
         empty={
           <EmptyState title={filtered ? "Không tìm thấy món nào" : "Chưa có công thức nào"} action={filtered ? <Button variant="secondary" onClick={reset}>Xem tất cả món</Button> : undefined}>
             {query ? "Mẹ thử gõ tên khác, không cần gõ dấu." : undefined}

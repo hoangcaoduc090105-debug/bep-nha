@@ -79,6 +79,30 @@ describe("backup package", () => {
     expect(entry.version?.ingredients.find((i) => i.slot === "nuoc_mam")?.quantity).toBe(1.5);
   });
 
+  it("the family's own picture stays on the phone, is replaced cleanly, and travels in the backup", async () => {
+    const db = getDb();
+    const jpeg = (n: number) => new Blob([new Uint8Array([n, n, n, 7])], { type: "image/jpeg" });
+    await repo.setFamilyPhoto(jpeg(1));
+    const first = await repo.getSetting<string | null>(repo.FAMILY_PHOTO, null);
+    await repo.setFamilyPhoto(jpeg(2));
+    const second = await repo.getSetting<string | null>(repo.FAMILY_PHOTO, null);
+    expect(second).not.toBe(first);
+    expect(await db.images.count()).toBe(1);
+    // Tidying up unused photos must not take it.
+    await repo.pruneImages();
+    expect(await repo.getImageBlob(second!)).not.toBeNull();
+
+    const { bytes } = await createBackup();
+    await wipe();
+    await restoreBackup(bytes);
+    expect(await repo.getSetting<string | null>(repo.FAMILY_PHOTO, null)).toBe(second);
+    expect([...new Uint8Array(await (await repo.getImageBlob(second!))!.arrayBuffer())]).toEqual([2, 2, 2, 7]);
+
+    await repo.removeFamilyPhoto();
+    expect(await repo.getSetting<string | null>(repo.FAMILY_PHOTO, null)).toBeNull();
+    expect(await db.images.count()).toBe(0);
+  });
+
   // A backup from before 2026-11-23 holds the ten samples and has never heard of putting them away.
   it("an old backup with the samples still restores; its samples are then put away, not lost", async () => {
     const db = getDb();

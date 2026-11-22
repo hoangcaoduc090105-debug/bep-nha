@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { CookingPot, Settings } from "lucide-react";
+import { CircleHelp, CookingPot, Settings } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { RecipeCard, RecipeCardSkeleton } from "@/components/ui/recipe-card";
 import { Banner, EmptyState } from "@/components/ui/states";
-import { getActiveSession, getRecipeBundle, getSetting, listJournal, listRecipes } from "@/data/repo";
+import { getActiveSession, getRecipeBundle, getSetting, listJournal, listRecipes, setSetting } from "@/data/repo";
 import { DEFAULTS, REMIND_AFTER_DAYS } from "@/lib/settings";
 import { recipeBadge } from "@/lib/labels";
 import { RecipePhoto } from "@/components/recipe-photo";
+import { MealSuggestion } from "@/components/meal-suggestion";
+import { FamilyPhoto } from "@/components/family-photo";
 
 export default function HomePage() {
   const recipes = useLiveQuery(() => listRecipes(), []);
@@ -28,18 +30,42 @@ export default function HomePage() {
   const home = useLiveQuery(async () => {
     const unsavedSince = await getSetting<string | null>("unsavedSince", null);
     const overdue = unsavedSince != null && Date.now() - new Date(unsavedSince).getTime() > REMIND_AFTER_DAYS * 86_400_000;
-    return { addressAs: await getSetting("addressAs", DEFAULTS.addressAs), overdue };
+    return { addressAs: await getSetting("addressAs", DEFAULTS.addressAs), overdue, guideSeen: await getSetting("guideSeen", false) };
   }, []);
 
   return (
     <AppShell tab="home">
-      <div className="flex items-start justify-between gap-3">
-        <h1 className="text-display">Chào {home?.addressAs ?? DEFAULTS.addressAs}, hôm nay nấu gì ạ?</h1>
-        <Link href="/cai-dat/" className="flex min-h-target shrink-0 flex-col items-center justify-center rounded-md px-2 text-sm font-medium text-accent">
-          <Settings aria-hidden className="size-7" />
-          Cài đặt
-        </Link>
+      <div className="flex items-center justify-between gap-3">
+        <FamilyPhoto className="size-24" />
+        <div className="flex shrink-0">
+          <Link href="/huong-dan/" className="flex min-h-target flex-col items-center justify-center rounded-md px-3 text-sm font-medium text-accent">
+            <CircleHelp aria-hidden className="size-7" />
+            Cách dùng
+          </Link>
+          <Link href="/cai-dat/" className="flex min-h-target flex-col items-center justify-center rounded-md px-3 text-sm font-medium text-accent">
+            <Settings aria-hidden className="size-7" />
+            Cài đặt
+          </Link>
+        </div>
       </div>
+      <h1 className="text-display">Chào {home?.addressAs ?? DEFAULTS.addressAs}, hôm nay nấu gì ạ?</h1>
+
+      {home && !home.guideSeen && (
+        <Banner
+          action={
+            <span className="flex flex-wrap gap-3">
+              <Link href="/huong-dan/" onClick={() => void setSetting("guideSeen", true)} className="inline-flex min-h-target items-center rounded-md bg-accent px-5 text-lg font-semibold text-on-accent">
+                Xem cách dùng
+              </Link>
+              <button type="button" onClick={() => void setSetting("guideSeen", true)} className="inline-flex min-h-target items-center rounded-md border-2 border-border-input bg-surface px-5 text-lg font-semibold">
+                Để sau
+              </button>
+            </span>
+          }
+        >
+          Bếp Nhà có thêm phần hướng dẫn, đọc chừng một phút là dùng được.
+        </Banner>
+      )}
 
       {home?.overdue && (
         <Banner
@@ -65,6 +91,8 @@ export default function HomePage() {
           </span>
         </Link>
       )}
+
+      <MealSuggestion />
 
       {recent && recent.length > 0 && (
         <section className="flex flex-col gap-3">

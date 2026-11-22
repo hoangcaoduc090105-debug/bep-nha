@@ -69,7 +69,28 @@ describe("first run", () => {
     const soups = await repo.listRecipes({ category: "Món canh" });
     expect(soups.filter((r) => r.verification === "sample").map((r) => r.name).sort()).toEqual(["Canh bí nấu tôm", "Canh chua cá"]);
     expect(soups.length).toBe(SEED_RECIPES.filter((s) => s.categories.includes("Món canh")).length);
-    expect(await repo.listCategories()).toEqual(["Món kho", "Món chiên", "Món xào", "Món canh", "Món ăn gia đình"]);
+    // Kinds of dish only; the samples' older "Món ăn gia đình" comes last, and main ingredients apart.
+    expect(await repo.listCategories()).toEqual(["Món mặn", "Món canh", "Món xào", "Món chiên", "Món ăn gia đình"]);
+    expect(await repo.listMainIngredients()).toEqual(["Thịt heo", "Thịt gà", "Thịt bò", "Cá, tôm", "Rau củ, đậu hũ"]);
+    const beef = await repo.listRecipes({ mainIngredient: "Thịt bò" });
+    expect(beef.map((r) => r.name).sort()).toEqual(["Cà ri bò (Tú Lê)", "Thịt bò xào măng tây (Tú Lê)"]);
+    // A sample still filed as "Món kho" is found under "Món mặn".
+    expect((await repo.listRecipes({ category: "Món mặn" })).some((r) => r.name === "Cá kho tộ")).toBe(true);
+  });
+  it("a phone that loaded the dishes from videos under the first groups gets the new ones once", async () => {
+    const db = getDb();
+    const [stew] = await repo.listRecipes({ query: "thit kho tieu" });
+    const [soup] = await repo.listRecipes({ query: "canh he" });
+    await db.recipes.update(stew.id, { categories: ["Món kho", "Món ăn gia đình"] });
+    // The family filed this one itself: left alone.
+    await db.recipes.update(soup.id, { categories: ["Món canh", "Món ăn gia đình", "Món ăn sáng"] });
+    await db.settings.delete("builtInGroups");
+    await repo.ensureSeeded();
+    expect((await repo.getRecipeBundle(stew.id))!.recipe.categories).toEqual(["Món mặn", "Thịt heo"]);
+    expect((await repo.getRecipeBundle(soup.id))!.recipe.categories).toEqual(["Món canh", "Món ăn gia đình", "Món ăn sáng"]);
+    await db.recipes.update(stew.id, { categories: ["Món kho", "Món ăn gia đình"] });
+    await repo.ensureSeeded();
+    expect((await repo.getRecipeBundle(stew.id))!.recipe.categories).toEqual(["Món kho", "Món ăn gia đình"]);
   });
   it("finds a dish without diacritics", async () => {
     expect(await repo.listRecipes({ query: "ca kho" })).toHaveLength(1);

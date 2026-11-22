@@ -51,7 +51,7 @@ test("write a new dish with a photo, cook from it, send it to another phone", as
 
   // 1. Name, category, photo.
   await field(page, "Tên món").fill("Vịt kho gừng");
-  await page.getByRole("button", { name: "Món kho" }).click();
+  await page.getByRole("button", { name: "Món mặn" }).click();
   const original = await bigPhoto(page);
   expect(original.length).toBeGreaterThan(100_000);
   await page.getByLabel("Chọn ảnh món").setInputFiles({ name: "IMG_0001.png", mimeType: "image/png", buffer: original });

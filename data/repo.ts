@@ -3,6 +3,7 @@
 
 import { getDb } from "./db";
 import { SEED_RECIPES, type SeedRecipe } from "./seed";
+import { MAIN_INGREDIENTS, OTHER_DISHES, dishType } from "@/lib/dish-groups";
 import type { CookingSession, Draft, Ingredient, Recipe, RecipeForm, RecipeVersion, Verdict } from "./types";
 import { newId, nowIso, searchKey } from "@/lib/text";
 import { CATEGORY_ORDER, buildContent, buildSource, contentOf, sameContent, validateForm } from "@/features/editor/form";
@@ -79,6 +80,10 @@ export async function ensureSeeded(): Promise<void> {
       for (const seed of missing) await insertSeed(seed);
       await db.settings.put({ key: "seededIds", value: [...done, ...missing.map((s) => s.seedId)] });
     }
+    if ((await db.settings.get(BUILT_IN_GROUPS))?.value !== 2) {
+      await regroupBuiltInDishes();
+      await db.settings.put({ key: BUILT_IN_GROUPS, value: 2 });
+    }
     if (!(await db.settings.get(SAMPLES_PUT_AWAY))) {
       await putAwaySamples();
       await db.settings.put({ key: SAMPLES_PUT_AWAY, value: nowIso() });
@@ -87,6 +92,22 @@ export async function ensureSeeded(): Promise<void> {
 }
 
 const SAMPLES_PUT_AWAY = "samplesPutAway";
+const BUILT_IN_GROUPS = "builtInGroups";
+
+/**
+ * The dishes from videos were first loaded as "Món kho / Món ăn gia đình"; since 2026-11-23 they
+ * are sorted by kind of dish and main ingredient. A phone that loaded them earlier gets the new
+ * groups once — only the groups, and only where the family has not chosen its own.
+ */
+async function regroupBuiltInDishes(): Promise<void> {
+  const db = getDb();
+  const bySource = new Map(SEED_RECIPES.map((s) => [`${s.source.youtubeVideoId}|${s.name}`, s.categories]));
+  for (const r of await db.recipes.toArray()) {
+    const groups = bySource.get(`${r.source.youtubeVideoId}|${r.name}`);
+    if (!groups || !r.categories.includes("Món ăn gia đình") || r.categories.length !== 2) continue;
+    await db.recipes.update(r.id, { categories: [...groups] });
+  }
+}
 
 /**
  * The ten unverified samples of the first versions are no longer part of the app. On a phone that
@@ -116,22 +137,31 @@ export async function addBuiltInRecipes(seeds: SeedRecipe[]): Promise<void> {
 
 // ───────────── recipes ─────────────
 
-export async function listRecipes(opts: { query?: string; archived?: boolean; favoritesOnly?: boolean; category?: string } = {}): Promise<Recipe[]> {
+export async function listRecipes(opts: { query?: string; archived?: boolean; favoritesOnly?: boolean; category?: string; mainIngredient?: string } = {}): Promise<Recipe[]> {
   const q = searchKey(opts.query ?? "");
   const all = await getDb().recipes.toArray();
   return all
     .filter((r) => r.isArchived === (opts.archived ?? false))
     .filter((r) => !opts.favoritesOnly || r.isFavorite)
-    .filter((r) => !opts.category || r.categories.includes(opts.category))
+    .filter((r) => !opts.category || r.categories.includes(opts.category) || dishType(r) === opts.category)
+    .filter((r) => !opts.mainIngredient || r.categories.includes(opts.mainIngredient))
     .filter((r) => q === "" || r.searchName.includes(q))
     .sort((a, b) => a.name.localeCompare(b.name, "vi"));
 }
 
 /** Categories that have at least one dish, in the usual menu order. */
+/** The kinds of dish in use, then anything else the family has typed; main ingredients are listed apart. */
 export async function listCategories(): Promise<string[]> {
-  const order = CATEGORY_ORDER;
-  const used = new Set((await getDb().recipes.toArray()).filter((r) => !r.isArchived).flatMap((r) => r.categories));
+  const order = CATEGORY_ORDER.filter((c) => !(MAIN_INGREDIENTS as readonly string[]).includes(c));
+  const live = (await getDb().recipes.toArray()).filter((r) => !r.isArchived);
+  const used = new Set(live.flatMap((r) => [...r.categories, dishType(r)]).filter((c) => !(MAIN_INGREDIENTS as readonly string[]).includes(c) && c !== "Món kho" && c !== OTHER_DISHES));
   return [...order.filter((c) => used.has(c)), ...[...used].filter((c) => !order.includes(c)).sort((a, b) => a.localeCompare(b, "vi"))];
+}
+
+/** The main ingredients in use, in their usual order. */
+export async function listMainIngredients(): Promise<string[]> {
+  const used = new Set((await getDb().recipes.toArray()).filter((r) => !r.isArchived).flatMap((r) => r.categories));
+  return MAIN_INGREDIENTS.filter((m) => used.has(m));
 }
 
 export type RecipeBundle = {
@@ -390,11 +420,34 @@ export async function getImageBlob(id: string): Promise<Blob | null> {
   return (await getDb().images.get(id))?.blob ?? null;
 }
 
-/** Removes photos that no dish, cooking session or draft refers to any more. */
+/** The setting that names the family's own picture, shown next to the greeting on the home page. */
+export const FAMILY_PHOTO = "familyPhotoId";
+
+/** Keeps `blob` as the family's picture; the one before it is removed. It stays on the device. */
+export async function setFamilyPhoto(blob: Blob): Promise<void> {
+  const db = getDb();
+  const before = await getSetting<string | null>(FAMILY_PHOTO, null);
+  const id = await addImage(blob);
+  await db.settings.put({ key: FAMILY_PHOTO, value: id });
+  if (before) await db.images.delete(before);
+  await touch();
+}
+
+export async function removeFamilyPhoto(): Promise<void> {
+  const db = getDb();
+  const before = await getSetting<string | null>(FAMILY_PHOTO, null);
+  await db.settings.delete(FAMILY_PHOTO);
+  if (before) await db.images.delete(before);
+  await touch();
+}
+
+/** Removes photos that no dish, cooking session, draft or setting refers to any more. */
 export async function pruneImages(): Promise<void> {
   const db = getDb();
-  await db.transaction("rw", db.recipes, db.sessions, db.drafts, db.images, async () => {
+  await db.transaction("rw", db.recipes, db.sessions, db.drafts, db.images, db.settings, async () => {
     const used = new Set<string>();
+    const family = (await db.settings.get(FAMILY_PHOTO))?.value;
+    if (typeof family === "string") used.add(family);
     for (const r of await db.recipes.toArray()) if (r.imageId) used.add(r.imageId);
     for (const s of await db.sessions.toArray()) for (const p of s.photoIds) used.add(p);
     for (const d of await db.drafts.toArray()) if (d.form.imageId) used.add(d.form.imageId);

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Download, Send, Upload, Undo2, Volume2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/back-link";
+import { FamilyPhotoPicker } from "@/components/family-photo";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -81,6 +82,16 @@ export default function SettingsPage() {
                 </Chip>
               ))}
             </div>
+          </Section>
+
+          <Section title="Cách dùng">
+            <Link href="/huong-dan/" className="inline-flex min-h-target items-center self-start rounded-md border-2 border-border-input bg-surface px-5 text-lg font-semibold">
+              Xem hướng dẫn sử dụng
+            </Link>
+          </Section>
+
+          <Section title="Ảnh của nhà mình">
+            <FamilyPhotoPicker />
           </Section>
 
           <Section title="Gửi và nhận món">
