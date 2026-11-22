@@ -1,4 +1,11 @@
-import { expect, test, type Page } from "./fixtures";
+import { join } from "node:path";
+import { expect, test, type Page, ALLOWED_OUTSIDE } from "./fixtures";
+import { SEED_RECIPES } from "../data/seed";
+
+// How many dishes a new phone starts with.
+const DISHES = SEED_RECIPES.length;
+// A backup made before the ten samples were dropped (see tests/old-backup.test.ts).
+const OLD_BACKUP = join(__dirname, "..", "tests", "data", "sao-luu-co-mon-mau.zip");
 
 // G4: the recipe editor, dish photos and recipe packs — against the built site, phone size.
 
@@ -34,7 +41,8 @@ test("write a new dish with a photo, cook from it, send it to another phone", as
   const outside: string[] = [];
   page.on("request", (r) => {
     const u = new URL(r.url());
-    if (u.protocol.startsWith("http") && u.host !== "127.0.0.1:4173") outside.push(r.url());
+    // The cover picture of a dish rewritten from a video is the one thing fetched from outside.
+    if (u.protocol.startsWith("http") && u.host !== "127.0.0.1:4173" && !ALLOWED_OUTSIDE.includes(u.host)) outside.push(r.url());
   });
   await noShareSheet(page);
   await page.goto("/cong-thuc/");
@@ -196,7 +204,7 @@ test("write a new dish with a photo, cook from it, send it to another phone", as
   const other = await newPhone();
   const p2 = await other.newPage();
   await p2.goto("/cong-thuc/");
-  await expect(p2.locator("main h3")).toHaveCount(10);
+  await expect(p2.locator("main h3")).toHaveCount(DISHES);
   await p2.goto("/cai-dat/mon/");
   await p2.getByLabel("Chọn tệp gửi món").setInputFiles({ name: "la.zip", mimeType: "application/zip", buffer: Buffer.from("không phải tệp gửi món") });
   await expect(p2.getByText("Tệp này không mở được")).toBeVisible();
@@ -212,9 +220,10 @@ test("write a new dish with a photo, cook from it, send it to another phone", as
 
   // It arrived whole — photo, both versions, the labels — and without the sender's journal.
   await p2.goto("/cong-thuc/");
-  await expect(p2.locator("main h3")).toHaveCount(11);
+  await expect(p2.locator("main h3")).toHaveCount(DISHES + 1);
   await p2.getByRole("link", { name: /Vịt kho gừng/ }).click();
   await expect(p2.getByRole("img", { name: "Vịt kho gừng" })).toBeVisible();
+  await expect(p2.getByRole("heading", { level: 1 })).toHaveText("Vịt kho gừng");
   await expect(p2.getByText("Mới nhập – chưa nấu thử")).toBeVisible();
   await expect(p2.getByText("Nước mắm: 2 muỗng canh (bản gốc: 1 muỗng canh)")).toBeVisible();
   await expect(p2.getByText("Đã nấu 0 lần.")).toBeVisible();
@@ -227,7 +236,7 @@ test("write a new dish with a photo, cook from it, send it to another phone", as
   await p2.getByRole("dialog").getByRole("button", { name: "Hoàn tác", exact: true }).click();
   await expect(p2.getByText("Đã trả lại dữ liệu như trước khi nhận món.")).toBeVisible();
   await p2.goto("/cong-thuc/");
-  await expect(p2.locator("main h3")).toHaveCount(10);
+  await expect(p2.locator("main h3")).toHaveCount(DISHES);
   await other.close();
 
   // A full backup of the first phone carries the photo.
@@ -236,16 +245,54 @@ test("write a new dish with a photo, cook from it, send it to another phone", as
   await page.getByRole("button", { name: "Sao lưu ngay" }).click();
   await (await backingUp).saveAs(testInfo.outputPath("sao-luu.zip"));
   await page.getByLabel("Chọn tệp sao lưu").setInputFiles(testInfo.outputPath("sao-luu.zip"));
-  await expect(page.getByRole("dialog")).toContainText("Gồm 11 món, 1 lần nấu, 1 ảnh.");
+  await expect(page.getByRole("dialog")).toContainText(`Gồm ${DISHES + 1} món, 1 lần nấu, 1 ảnh.`);
 
   expect(outside, "requests to other servers").toEqual([]);
 });
 
-test("the editor fits a phone at the largest text size, and a sample is never overwritten", async ({ page }) => {
+// The ten unverified samples are no longer loaded. A phone, or a backup, from before 2026-11-23
+// still has them: the backup restores, the samples then wait in "Món đã xoá", and one that is
+// brought back is still a sample — no video, and never overwritten by the editor.
+test("an old backup with the samples restores; a sample is put away, can come back, and is never overwritten", async ({ page }) => {
+  await page.goto("/cong-thuc/");
+  await expect(page.locator("main h3")).toHaveCount(DISHES);
+  await expect(page.getByText("Mẫu – chưa kiểm chứng")).toHaveCount(0);
+
   await page.goto("/cai-dat/");
   await page.getByRole("button", { name: "Cực lớn" }).click();
+  await page.getByLabel("Chọn tệp sao lưu").setInputFiles(OLD_BACKUP);
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Gồm 10 món, 1 lần nấu, 0 ảnh.");
+  await dialog.getByRole("button", { name: "Khôi phục", exact: true }).click();
+  await expect(page.getByText("Đã khôi phục: 10 món, 1 lần nấu, 0 ảnh.")).toBeVisible();
+
+  // The next page she opens: the dishes from videos are back, and no sample is in the list.
   await page.goto("/cong-thuc/");
+  await expect(page.locator("main h3")).toHaveCount(DISHES);
+  await expect(page.locator("main h3").filter({ hasText: /^Cá kho tộ$/ })).toHaveCount(0);
+  // The meal cooked from a sample is still in the journal.
+  await page.goto("/nhat-ky/");
+  await expect(page.locator("main li").first()).toContainText("Cá kho tộ");
+  await expect(page.locator("main li").first()).toContainText("Nấu thử lần đầu");
+
+  // All ten wait in "Món đã xoá"; one is brought back.
+  await page.goto("/cai-dat/");
+  await expect(page.getByRole("button", { name: "Khôi phục món này" })).toHaveCount(10);
+  await page.locator("div").filter({ has: page.getByText("Cá kho tộ", { exact: true }) }).last().getByRole("button", { name: "Khôi phục món này" }).click();
+  await expect(page.getByRole("button", { name: "Khôi phục món này" })).toHaveCount(9);
+  await page.goto("/cong-thuc/");
+  await expect(page.locator("main h3")).toHaveCount(DISHES + 1);
+  // It stays after the app is opened again.
+  await page.reload();
+  await expect(page.locator("main h3")).toHaveCount(DISHES + 1);
+
+  // A sample has no video: no cover picture, and (below) no video button.
   await page.getByRole("link", { name: /Cá kho tộ/ }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Cá kho tộ");
+  await expect(page.getByText("Mẫu – chưa kiểm chứng").first()).toBeVisible();
+  await expect(page.getByText("Chưa có ảnh")).toBeVisible();
+  await expect(page.locator("main img")).toHaveCount(0);
+
   await page.getByRole("link", { name: /Sửa món/ }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Sửa món: Cá kho tộ");
   const noSideScroll = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
@@ -267,4 +314,8 @@ test("the editor fits a phone at the largest text size, and a sample is never ov
   await expect(page.getByText("Mẫu – chưa kiểm chứng").first()).toBeVisible();
   await page.getByRole("radio", { name: "Bản gốc" }).click();
   await expect(page.getByText("1. Rửa cá cho hết tanh")).toBeVisible();
+
+  await page.getByRole("button", { name: "Bắt đầu nấu" }).click();
+  await page.getByRole("button", { name: "Bắt đầu bước 1" }).click();
+  await expect(page.getByRole("button", { name: /Xem đoạn/ })).toHaveCount(0);
 });

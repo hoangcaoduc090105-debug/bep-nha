@@ -8,7 +8,7 @@ import { shortName } from "@/features/recipe-text";
 export const CATEGORY_ORDER = ["Món kho", "Món chiên", "Món xào", "Món canh", "Món hấp", "Món luộc", "Món nướng", "Món gỏi", "Món ăn sáng", "Món ăn gia đình", "Món tráng miệng"];
 
 /** Units offered in the editor, the everyday ones first. */
-export const UNIT_CHOICES: Unit[] = ["g", "muong_canh", "muong_ca_phe", "cu", "trai", "chen", "ml", "kg", "l", "tep", "nhanh", "cay", "la", "lat", "con", "qua", "mieng", "bo"];
+export const UNIT_CHOICES: Unit[] = ["g", "muong_canh", "muong_ca_phe", "cu", "trai", "chen", "ml", "kg", "l", "tep", "nhanh", "cay", "la", "lat", "con", "qua", "mieng", "bo", "hop"];
 
 export const COMMON_EQUIPMENT: Equipment[] = [
   { name: "Bếp gas hoặc bếp từ", kind: "appliance", required: true },
@@ -305,6 +305,8 @@ export function buildContent(form: RecipeForm, base?: RecipeVersion | null): Ver
     };
     if (old?.ifWrong) step.ifWrong = old.ifWrong;
     if (old?.videoStartSeconds != null) step.videoStartSeconds = old.videoStartSeconds;
+    if (old?.videoEndSeconds != null) step.videoEndSeconds = old.videoEndSeconds;
+    if (old?.videoOmitsAmounts) step.videoOmitsAmounts = true;
     if (f.timerMinutes != null) {
       // Keep a timer that was set in seconds (e.g. 90 s) when the minutes were not touched.
       const untouched = old?.timerSeconds != null && Math.max(1, Math.round(old.timerSeconds / 60)) === f.timerMinutes;

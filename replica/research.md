@@ -35,7 +35,7 @@ All three loaded and were verified from YouTube's own channel pages and public R
 | size (as displayed) | ~846K subscribers, ~1.1K videos | ~1.96M subscribers, 653 videos | ~2.4M subscribers, 799 videos |
 | style | Mekong Delta home cooking, easy family dishes | Southern home cooking (Bình Dương), one host, menu series "Hôm Nay Ăn Gì" and "Tiệc Này Ăn Gì" | Southern home cooking despite the health-sounding name; all 15 latest uploads are recipes; leans to bánh, chè and batch cooking |
 | recurring | canh, gỏi, dipping sauces, pickles, coconut sweets, xôi, Tết dishes | kho, chiên, xào, bún nước, steamed bánh, party menus | kho, sốt, chè, bánh hấp/nướng, gỏi cuốn, bánh canh |
-| how quantities are given | ~2/3 of descriptions list ingredients in kg / g / ml / spoons; steps not written | long descriptions with tips; whether a full measured list follows was **not verified** | every description lists ingredients in household measures **with gram equivalents**, grouped (vỏ / nhân / sốt); steps mostly not written |
+| how quantities are given (re-checked 2026-11-22) | of 17 savoury and soup videos opened, 6 list amounts in the description, usually incomplete (no water, no aromatics); the 3 newest have an empty description | newer videos list ingredients with amounts (Tbsp / tsp, g, ml) and a chapter list of the steps; the "Hôm Nay Ăn Gì" compilations give only chapters | every description lists ingredients in household measures **with gram equivalents**, grouped (vỏ / nhân / sốt); steps mostly not written |
 | embeddable | yes (2 videos tested) | yes (2 tested) | yes (2 tested) |
 
 Recent examples (titles as published):
@@ -44,6 +44,8 @@ Recent examples (titles as published):
 - Sức Khỏe Tâm Sinh: Thịt Kho/Rang Sả Ớt và Canh Chua thịt bằm — https://www.youtube.com/watch?v=cgauooVeeFY · Thịt Viên Sốt Chua Ngọt — https://www.youtube.com/watch?v=fo0UujUP1sQ · Xíu Mại Sốt Cà Chua — https://www.youtube.com/watch?v=qosxytfh-CI · Gỏi Cuốn Tôm Thịt — https://www.youtube.com/watch?v=fqHZ8adtfgQ
 
 Dishes that recur across channels: gỏi cuốn with tương đen, thịt kho variants (kho tiêu, rang sả ớt), family soups (canh chua thịt bằm, canh hẹ), gỏi gà / gỏi đu đủ, xá xíu, cánh gà chiên nước mắm, khoai mì nước cốt dừa, chè and coconut sweets.
+
+Re-checked 2026-11-22 (channel RSS feeds, in-channel search for "kho" and "canh", about 40 descriptions read). No description gives the method. YouTube's transcript panel can be read in a browser (the caption download address returns nothing), which gives order, heat and times in the channel's own words — to be used as facts and rewritten, never copied.
 
 ### What this means for the product
 1. **All three are Southern home cooking** — the same taste the brief describes. No regional conversion is needed.
@@ -56,7 +58,7 @@ Dishes that recur across channels: gỏi cuốn with tương đen, thịt kho va
 - Ingredient lists and methods are facts and ideas; the creators' wording, video and photos are theirs.
 - A recipe written from a video is stored with `fidelity = inspired` or `transcribed`, the channel name, and the video link, and is shown as "Viết lại theo video của …", never as the creator's exact recipe.
 - No video or thumbnail is downloaded. Videos play through YouTube's embed or open in YouTube.
-- The app is private to one family, behind one account.
+- The app has no account; the repository is public, so dishes written from videos are public too: they carry only amounts the channel published, steps in our own words, the channel name and the link.
 
 ## 3. Missing requirements found
 

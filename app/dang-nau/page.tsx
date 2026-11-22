@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { StepVideo } from "@/components/step-video";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FeedbackOptions, type FeedbackId } from "@/components/ui/feedback-option";
@@ -141,6 +142,9 @@ function Cooking({ session, recipe, version, onFinished }: Loaded & { onFinished
             <IngredientRow key={i.slot} name={i.name} amount={formatAmount(i.quantity, i.unit)} metric={formatMetric(i.metricQuantity, i.metricUnit)} prepNote={i.prepNote} optional={i.optional} checked={session.checked.includes(i.slot)} onCheckedChange={(v) => toggleChecked(i.slot, v)} />
           ))}
         </div>
+        {recipe.source.youtubeVideoId && recipe.source.ingredientsVideoStartSeconds != null && (
+          <StepVideo videoId={recipe.source.youtubeVideoId} startSeconds={recipe.source.ingredientsVideoStartSeconds} endSeconds={recipe.source.ingredientsVideoEndSeconds} channel={recipe.source.creatorName} onOpen={() => speech.stop()} label="Xem đoạn kênh nói về nguyên liệu" title="Video kênh nói về nguyên liệu" />
+        )}
         <section className="flex flex-col gap-2">
           <h2 className="text-xl">Dụng cụ</h2>
           <ul className="flex list-disc flex-col gap-1 pl-7">
@@ -206,6 +210,9 @@ function Cooking({ session, recipe, version, onFinished }: Loaded & { onFinished
       {step.doneWhen && <DoneWhen>{step.doneWhen}</DoneWhen>}
       {step.avoid && <Avoid>{step.avoid}</Avoid>}
       {step.ifWrong && <p className="rounded-md bg-surface p-4 text-lg font-normal shadow-card">{step.ifWrong}</p>}
+      {recipe.source.youtubeVideoId && step.videoStartSeconds != null && (
+        <StepVideo key={step.no} videoId={recipe.source.youtubeVideoId} startSeconds={step.videoStartSeconds} endSeconds={step.videoEndSeconds} channel={recipe.source.creatorName} onOpen={() => speech.stop()} note={step.videoOmitsAmounts ? "Trong đoạn này kênh không nhắc lại lượng. Lượng ở mục “Cần dùng” phía trên." : undefined} />
+      )}
 
       <div className="flex flex-wrap gap-3">
         {hasTimer && (

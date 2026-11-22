@@ -1,24 +1,13 @@
-import type { Equipment, Ingredient, RecipeSource, Step, StepUse, Unit } from "../types";
+import type { Ingredient, RecipeSource, Step, StepUse, Unit } from "../types";
+import { KNIFE, SPOONS, STOVE, pot, type Seed } from "./shared";
 
 // SAMPLE RECIPES — written for this app in the common Southern home style, for 4 people.
 // None has been cooked and checked by the family. All are stored as verification = "sample"
 // and shown as "Mẫu – chưa kiểm chứng" until the family confirms them after cooking.
-
-export type Seed = {
-  seedId: string;
-  name: string;
-  description: string;
-  categories: string[];
-  servings: number;
-  prepMinutes: number;
-  cookMinutes: number;
-  source: RecipeSource;
-  ingredients: Ingredient[];
-  steps: Step[];
-  equipment: Equipment[];
-  notes: string;
-  tasteTips: string;
-};
+//
+// Since 2026-11-23 the app no longer loads them (data/seed/index.ts): the dishes rewritten from
+// mother's channels took their place. They stay in the code as test data, and because a phone
+// or a backup made before that date still holds them.
 
 export const SAMPLE_SOURCE: RecipeSource = {
   kind: "sample",
@@ -35,11 +24,6 @@ const all = (...slots: string[]): StepUse[] => slots.map((slot) => ({ slot, port
 const half = (...slots: string[]): StepUse[] => slots.map((slot) => ({ slot, portion: 0.5 }));
 type StepExtra = Partial<Pick<Step, "ifWrong" | "timerSeconds" | "timerLabel" | "heat">>;
 const step = (no: number, phase: Step["phase"], title: string, instructions: string[], doneWhen: string, avoid: string, uses: StepUse[], extra: StepExtra = {}): Step => ({ no, phase, title, instructions, doneWhen, avoid, uses, ...extra });
-
-const STOVE: Equipment = { name: "Bếp gas hoặc bếp từ", kind: "appliance", required: true };
-const KNIFE: Equipment = { name: "Dao, thớt", kind: "utensil", required: true };
-const SPOONS: Equipment = { name: "Muỗng canh, muỗng cà phê", kind: "utensil", required: true };
-const pot = (name: string): Equipment => ({ name, kind: "utensil", required: true });
 
 const fishSauce = (q: number) => season("nuoc_mam", "Nước mắm", q, "muong_canh", [q * 15, "ml"], { tasteRole: "salty" });
 const sugarSpoon = (q: number) => season("duong", "Đường", q, "muong_canh", [q * 12, "g"], { tasteRole: "sweet" });

@@ -2,16 +2,22 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { BepNhaDB, getDb, setDbForTests } from "@/data/db";
 import * as repo from "@/data/repo";
-import { SEED_RECIPES } from "@/data/seed";
 
-const N = SEED_RECIPES.length;
 import { BackupError, createBackup, inspectBackup, latestRestorePoint, markBackedUp, restoreBackup, undoRestore } from "@/features/backup";
 import { sha256 } from "@/features/backup/package";
+import { SEED_RECIPES as APP_SEEDS } from "@/data/seed";
+import { SAMPLE_SEEDS } from "@/data/seed/samples";
+
+// These tests work on a phone from before 2026-11-23: it holds the ten unverified samples the app
+// used to load, next to the dishes rewritten from videos. A new phone has only the latter.
+const SEED_RECIPES = [...SAMPLE_SEEDS, ...APP_SEEDS];
+const N = SEED_RECIPES.length;
 
 let n = 0;
 beforeEach(async () => {
   setDbForTests(new BepNhaDB(`backup-test-${++n}`));
   await repo.ensureSeeded();
+  await repo.addBuiltInRecipes(SAMPLE_SEEDS);
 });
 
 /** A device with real history: a family version, a cooked meal, a favourite and a photo. */
@@ -71,6 +77,34 @@ describe("backup package", () => {
     // The journal still points at the exact version that was cooked.
     const [entry] = await repo.listJournal();
     expect(entry.version?.ingredients.find((i) => i.slot === "nuoc_mam")?.quantity).toBe(1.5);
+  });
+
+  // A backup from before 2026-11-23 holds the ten samples and has never heard of putting them away.
+  it("an old backup with the samples still restores; its samples are then put away, not lost", async () => {
+    const db = getDb();
+    await wipe();
+    await repo.addBuiltInRecipes(SAMPLE_SEEDS);
+    await db.settings.put({ key: "seededIds", value: SAMPLE_SEEDS.map((x) => x.seedId) });
+    const [fish] = await repo.listRecipes({ query: "ca kho to" });
+    const cooked = (await repo.getRecipeBundle(fish.id))!;
+    const meal = await repo.startSession(fish.id, cooked.original.id, 4);
+    await repo.finishSession(meal.id, { verdict: "rat_ngon" });
+    const { bytes } = await createBackup();
+
+    // Today's phone: the dishes from videos, no samples.
+    await wipe();
+    await repo.ensureSeeded();
+    expect(await inspectBackup(bytes)).toMatchObject({ recipes: SAMPLE_SEEDS.length, sessions: 1 });
+    await restoreBackup(bytes);
+    expect((await repo.listRecipes()).map((r) => r.name).sort()).toEqual(SAMPLE_SEEDS.map((x) => x.name).sort());
+
+    // The next time the app opens: the dishes from videos arrive, the samples go to "Món đã xoá".
+    await repo.ensureSeeded();
+    expect(await repo.listRecipes()).toHaveLength(APP_SEEDS.length);
+    expect((await repo.listRecipes({ archived: true })).map((r) => r.name).sort()).toEqual(SAMPLE_SEEDS.map((x) => x.name).sort());
+    const [entry] = await repo.listJournal();
+    expect(entry.recipe?.name).toBe("Cá kho tộ");
+    expect(entry.session.versionId).toBe(cooked.original.id);
   });
 
   it("reports what a package contains without changing anything", async () => {
@@ -187,6 +221,7 @@ async function onOtherDevice<T>(work: () => Promise<T>): Promise<T> {
   const here = getDb();
   setDbForTests(new BepNhaDB(`other-device-${++n}`));
   await repo.ensureSeeded();
+  await repo.addBuiltInRecipes(SAMPLE_SEEDS);
   try {
     return await work();
   } finally {

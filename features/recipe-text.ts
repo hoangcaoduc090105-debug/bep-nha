@@ -6,7 +6,7 @@ import type { Ingredient, RecipeVersion, Unit } from "@/data/types";
 import { formatAmount, formatAmountSpoken, formatMetric } from "@/lib/quantity";
 
 const SPOONS: Unit[] = ["muong_ca_phe", "muong_canh", "chen"];
-const COUNTED: Unit[] = ["trai", "cu", "tep", "nhanh", "cay", "la", "lat", "con", "qua", "mieng", "bo"];
+const COUNTED: Unit[] = ["trai", "cu", "tep", "nhanh", "cay", "la", "lat", "con", "qua", "mieng", "bo", "hop"];
 
 /** Rounds to something a person can actually measure. Never rounds down to nothing. */
 export function roundPractical(quantity: number, unit: Unit | null): number {

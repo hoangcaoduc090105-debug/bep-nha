@@ -3,7 +3,7 @@
 
 import { getDb } from "./db";
 import { SEED_RECIPES, type SeedRecipe } from "./seed";
-import type { CookingSession, Draft, Recipe, RecipeForm, RecipeVersion, Verdict } from "./types";
+import type { CookingSession, Draft, Ingredient, Recipe, RecipeForm, RecipeVersion, Verdict } from "./types";
 import { newId, nowIso, searchKey } from "@/lib/text";
 import { CATEGORY_ORDER, buildContent, buildSource, contentOf, sameContent, validateForm } from "@/features/editor/form";
 
@@ -35,7 +35,12 @@ async function insertSeed(seed: SeedRecipe): Promise<void> {
     cookMinutes: seed.cookMinutes,
     notes: seed.notes,
     tasteTips: seed.tasteTips,
-    ingredients: seed.ingredients,
+    // Where an amount comes from is a note for the writer and the tests, not part of the recipe.
+    ingredients: seed.ingredients.map((i) => {
+      const stored: Ingredient = { ...i };
+      delete (stored as { amountSource?: unknown }).amountSource;
+      return stored;
+    }),
     steps: seed.steps,
     equipment: seed.equipment,
     createdAt: now,
@@ -51,7 +56,7 @@ async function insertSeed(seed: SeedRecipe): Promise<void> {
     difficulty: "easy",
     originalVersionId: versionId,
     familyVersionId: null,
-    verification: "sample",
+    verification: seed.verification ?? "sample",
     isArchived: false,
     isFavorite: false,
     createdAt: now,
@@ -60,19 +65,52 @@ async function insertSeed(seed: SeedRecipe): Promise<void> {
 }
 
 /**
- * Loads each sample recipe once per device. A sample that was deleted is not added again,
- * and samples added in a later version of the app arrive without touching existing data.
+ * Loads each built-in recipe once per device. A dish that was deleted is not added again, and
+ * dishes added in a later version of the app arrive without touching existing data.
  */
 export async function ensureSeeded(): Promise<void> {
   const db = getDb();
-  await db.transaction("rw", db.recipes, db.versions, db.settings, async () => {
+  await db.transaction("rw", db.recipes, db.versions, db.sessions, db.settings, async () => {
     const stored = (await db.settings.get("seededIds"))?.value as string[] | undefined;
     // Before seededIds existed, a "seeded" flag meant the first sample had been loaded.
     const done = new Set(stored ?? ((await db.settings.get("seeded")) ? ["ca-kho-to"] : []));
     const missing = SEED_RECIPES.filter((s) => !done.has(s.seedId));
-    if (missing.length === 0 && stored) return;
-    for (const seed of missing) await insertSeed(seed);
-    await db.settings.put({ key: "seededIds", value: [...done, ...missing.map((s) => s.seedId)] });
+    if (missing.length > 0 || !stored) {
+      for (const seed of missing) await insertSeed(seed);
+      await db.settings.put({ key: "seededIds", value: [...done, ...missing.map((s) => s.seedId)] });
+    }
+    if (!(await db.settings.get(SAMPLES_PUT_AWAY))) {
+      await putAwaySamples();
+      await db.settings.put({ key: SAMPLES_PUT_AWAY, value: nowIso() });
+    }
+  });
+}
+
+const SAMPLES_PUT_AWAY = "samplesPutAway";
+
+/**
+ * The ten unverified samples of the first versions are no longer part of the app. On a phone that
+ * still has them they are moved to "Món đã xoá", once: nothing is deleted, a meal cooked from one
+ * stays in the journal, and each can be brought back from Cài đặt. A sample the family has made
+ * its own — marked as a favourite, adjusted into "Bản nhà mình", or being cooked right now —
+ * stays where it is. Restoring a backup made before this runs it once more on what came back.
+ */
+async function putAwaySamples(): Promise<void> {
+  const db = getDb();
+  const samples = (await db.recipes.toArray()).filter((r) => r.verification === "sample" && r.source.kind === "sample" && !r.isArchived);
+  for (const r of samples) {
+    if (r.isFavorite || r.familyVersionId != null) continue;
+    if ((await db.versions.where("recipeId").equals(r.id).count()) > 1) continue;
+    if ((await db.sessions.where("recipeId").equals(r.id).filter((s) => s.status === "in_progress").count()) > 0) continue;
+    await db.recipes.update(r.id, { isArchived: true, updatedAt: nowIso() });
+  }
+}
+
+/** Adds built-in recipes the app itself no longer loads. For the tests only. */
+export async function addBuiltInRecipes(seeds: SeedRecipe[]): Promise<void> {
+  const db = getDb();
+  await db.transaction("rw", db.recipes, db.versions, async () => {
+    for (const seed of seeds) await insertSeed(seed);
   });
 }
 
@@ -288,6 +326,12 @@ export async function saveRecipeForm(input: { form: RecipeForm; recipeId?: strin
     const content = buildContent(form, base);
     // An app sample keeps saying it is a sample: its source is not rewritten by an edit.
     const source = recipe.source.kind === "sample" ? recipe.source : buildSource(form);
+    // The editor does not show where in the video the ingredients are listed; keep it while the
+    // dish still points at the same video.
+    if (source.youtubeVideoId && source.youtubeVideoId === recipe.source.youtubeVideoId && recipe.source.ingredientsVideoStartSeconds != null) {
+      source.ingredientsVideoStartSeconds = recipe.source.ingredientsVideoStartSeconds;
+      source.ingredientsVideoEndSeconds = recipe.source.ingredientsVideoEndSeconds;
+    }
     await db.recipes.update(recipe.id, { ...details, source });
     await db.drafts.delete(recipe.id);
 

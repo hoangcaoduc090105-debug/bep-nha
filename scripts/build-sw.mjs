@@ -31,6 +31,10 @@ const VERSION = ${JSON.stringify(version)};
 const BASE = ${JSON.stringify(base)};
 const CACHE = "bep-nha-" + VERSION;
 const FILES = ${JSON.stringify(urls)};
+// Cover pictures of the videos some dishes are rewritten from. Kept across versions of the app,
+// so a dish she has seen once still shows its picture with no network.
+const COVERS = "anh-bia-video";
+const COVER_HOST = "https://i.ytimg.com";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)));
@@ -59,6 +63,23 @@ self.addEventListener("fetch", (event) => {
   // answered from the device, or the question fails when there is no network.
   if (request.method !== "GET" && request.method !== "HEAD") return;
   const url = new URL(request.url);
+  if (url.origin === COVER_HOST && request.method === "GET") {
+    event.respondWith(
+      (async () => {
+        const covers = await caches.open(COVERS);
+        const kept = await covers.match(url.href);
+        if (kept) return kept;
+        try {
+          const fresh = await fetch(request);
+          if (fresh.ok) await covers.put(url.href, fresh.clone());
+          return fresh;
+        } catch {
+          return Response.error(); // no network: the page shows its "Chưa có ảnh" tile
+        }
+      })(),
+    );
+    return;
+  }
   if (url.origin !== self.location.origin || !url.pathname.startsWith(BASE + "/")) return;
   event.respondWith(
     (async () => {

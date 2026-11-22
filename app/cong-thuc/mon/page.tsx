@@ -106,7 +106,8 @@ function RecipeDetail({ bundle }: { bundle: RecipeBundle }) {
 
   return (
     <>
-      <RecipePhoto imageId={recipe.imageId} name={recipe.name} />
+      <RecipePhoto imageId={recipe.imageId} name={recipe.name} videoId={recipe.source.youtubeVideoId} />
+      {!recipe.imageId && recipe.source.youtubeVideoId && <p className="-mt-2 text-text-muted">Ảnh bìa video{recipe.source.creatorName ? ` của kênh ${recipe.source.creatorName}` : ""}. Chưa có ảnh nhà mình chụp.</p>}
       <header className="flex flex-col gap-3">
         <h1 className="text-display">{recipe.name}</h1>
         <div className="flex flex-wrap gap-2">

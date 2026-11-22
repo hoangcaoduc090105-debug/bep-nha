@@ -23,13 +23,14 @@ export const metadata: Metadata = {
 };
 
 // Nothing leaves the device: in the built site the browser itself refuses any connection to
-// another server. The only outside content allowed is a YouTube video she chooses to play.
+// another server. The only outside content allowed, both for a dish rewritten from a video:
+// the YouTube video she chooses to play, and that video's cover picture.
 // (Not applied in development, where the dev server needs its own connections.)
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' blob: data:",
+  "img-src 'self' blob: data: https://i.ytimg.com",
   "font-src 'self'",
   "connect-src 'self'",
   "worker-src 'self'",

@@ -12,6 +12,18 @@ import { test as base, type BrowserContext } from "@playwright/test";
 
 type Fixtures = { newPhone: () => Promise<BrowserContext> };
 
+// The two outside addresses the app may use, both for a dish rewritten from a video: the video's
+// cover picture and the YouTube player. The tests answer them here, so no test depends on YouTube.
+// (WebKit does not let a test answer what the service worker fetches; there the cover picture
+// may really be fetched.)
+export const ALLOWED_OUTSIDE = ["i.ytimg.com", "www.youtube-nocookie.com"];
+// A 320 × 180 picture, the size of YouTube's small cover.
+const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAUAAAAC0CAIAAABqhmJGAAABk0lEQVR42u3TAQkAAAzDsIm9pmu6rOsYBKKg0NwOUCoSgIEBAwMGBgMDBgYMDBgYDAwYGDAwGBgwMGBgwMBgYMDAgIEBA4OBAQMDBgYDAwYGDAwYGAwMGBgwMGBgMDBgYMDAYGDAwICBAQODgQEDAwYGA6sABgYMDBgYDAwYGDAwYGAwMGBgwMBgYMDAgIEBA4OBAQMDBgYMDAYGDAwYGAwMGBgwMGBgMDBgYMDAgIHBwICBAQODgQEDAwYGDAwGBgwMGBgMDBgYMDBgYDAwYGDAwICBwcCAgQEDg4EBAwMGBgwMBgYMDBgYMDAYGDAwYGAwMGBgwMCAgcHAgIEBAwMGBgMDBgYMDAYGDAwYGDAwGBgwMGBgMDBgYMDAgIHBwICBAQMDBgYDAwYGDAwGBgwMGBgwMBgYMDBgYMDAYGDAwICBwcCAgQEDAwYGAwMGBgwMBlYBDAwYGDAwGBgwMGBgwMBgYMDAgIHBwICBAQMDBgYDAwYGDAwYGAwMGBgwMBgYMDBgYMDAYGDAwICBAQNDtweD1Jkmt0dyXQAAAABJRU5ErkJggg==", "base64");
+async function answerOutside(context: BrowserContext) {
+  await context.route("https://i.ytimg.com/**", (route) => route.fulfill({ status: 200, contentType: "image/png", headers: { "access-control-allow-origin": "*" }, body: PIXEL }));
+  await context.route("https://www.youtube-nocookie.com/**", (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>video</title><p>video</p>" }));
+}
+
 export const test = base.extend<Fixtures>({
   newPhone: async ({ browser, browserName, playwright }, provide, testInfo) => {
     const opened: BrowserContext[] = [];
@@ -36,6 +48,7 @@ export const test = base.extend<Fixtures>({
       } else {
         context = await browser.newContext({ locale: "vi-VN" });
       }
+      await answerOutside(context);
       opened.push(context);
       return context;
     });
@@ -44,7 +57,10 @@ export const test = base.extend<Fixtures>({
   },
   // The first phone.
   context: async ({ context, browserName, newPhone }, provide) => {
-    if (browserName !== "webkit") return provide(context);
+    if (browserName !== "webkit") {
+      await answerOutside(context);
+      return provide(context);
+    }
     await provide(await newPhone());
   },
   page: async ({ context, page, browserName }, provide) => {

@@ -4,7 +4,7 @@
 export type Unit =
   | "g" | "kg" | "ml" | "l"
   | "muong_ca_phe" | "muong_canh" | "chen"
-  | "trai" | "cu" | "tep" | "nhanh" | "cay" | "la" | "lat" | "con" | "qua" | "mieng" | "bo"
+  | "trai" | "cu" | "tep" | "nhanh" | "cay" | "la" | "lat" | "con" | "qua" | "mieng" | "bo" | "hop"
   | "it";
 
 export type TasteRole = "sweet" | "salty" | "spicy" | "sour" | "rich";
@@ -44,7 +44,11 @@ export type Step = {
   timerLabel?: string;
   heat?: "low" | "medium" | "high" | "off";
   uses: StepUse[];
+  /** Where this step is shown in the source video, in seconds from its start. */
   videoStartSeconds?: number;
+  videoEndSeconds?: number;
+  /** In that part of the video the channel does not say the amounts this step uses. */
+  videoOmitsAmounts?: boolean;
 };
 
 export type Equipment = { name: string; kind: "appliance" | "utensil"; required: boolean; alternative?: string };
@@ -55,6 +59,12 @@ export type RecipeSource = {
   creatorName?: string;
   url?: string;
   youtubeVideoId?: string;
+  /**
+   * The part of the video where the channel lists the ingredients and their amounts, in seconds
+   * from its start. Shown on the "Chuẩn bị nguyên liệu" screen, before step 1.
+   */
+  ingredientsVideoStartSeconds?: number;
+  ingredientsVideoEndSeconds?: number;
   /** How faithfully the written recipe follows the source. */
   fidelity: "exact" | "transcribed" | "inspired" | "own";
   note?: string;

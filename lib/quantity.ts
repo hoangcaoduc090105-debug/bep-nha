@@ -39,6 +39,7 @@ export const UNIT_LABELS: Record<string, string> = {
   qua: "quả",
   mieng: "miếng",
   bo: "bó",
+  hop: "hộp",
   it: "ít",
 };
 

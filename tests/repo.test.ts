@@ -1,12 +1,18 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { BepNhaDB, setDbForTests } from "@/data/db";
+import { BepNhaDB, getDb, setDbForTests } from "@/data/db";
 import * as repo from "@/data/repo";
-import { SEED_RECIPES } from "@/data/seed";
+import { SEED_RECIPES as APP_SEEDS } from "@/data/seed";
+import { SAMPLE_SEEDS } from "@/data/seed/samples";
+
+// These tests work on a phone from before 2026-11-23: it holds the ten unverified samples the app
+// used to load, next to the dishes rewritten from videos. A new phone has only the latter.
+const SEED_RECIPES = [...SAMPLE_SEEDS, ...APP_SEEDS];
 
 let n = 0;
 beforeEach(async () => {
   setDbForTests(new BepNhaDB(`test-${++n}`));
   await repo.ensureSeeded();
+  await repo.addBuiltInRecipes(SAMPLE_SEEDS);
 });
 
 async function firstRecipe() {
@@ -19,11 +25,39 @@ describe("first run", () => {
     await repo.ensureSeeded();
     const list = await repo.listRecipes();
     expect(list).toHaveLength(SEED_RECIPES.length);
-    expect(list).toHaveLength(10);
-    for (const r of list) {
-      expect(r.verification).toBe("sample");
-      expect(r.familyVersionId).toBeNull();
+    const samples = list.filter((r) => r.verification === "sample");
+    expect(samples).toHaveLength(10);
+    for (const r of samples) expect(r.source.kind).toBe("sample");
+    for (const r of list) expect(r.familyVersionId).toBeNull();
+  });
+  it("loads a dish rewritten from a video as “Mới nhập – chưa nấu thử”, with its channel and link", async () => {
+    await repo.ensureSeeded();
+    const fromVideo = (await repo.listRecipes()).filter((r) => r.verification !== "sample");
+    expect(fromVideo.length).toBe(SEED_RECIPES.filter((s) => s.verification === "entered").length);
+    expect(fromVideo.length).toBeGreaterThan(0);
+    for (const r of fromVideo) {
+      expect(r.verification).toBe("entered");
+      expect(r.source.kind).toBe("youtube");
+      expect(r.source.creatorName).toBeTruthy();
+      expect(r.source.url).toMatch(/^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}$/);
     }
+  });
+  it("a phone that already has the ten samples receives the new dishes and keeps everything else", async () => {
+    await repo.ensureSeeded();
+    const b = await firstRecipe();
+    await repo.saveFamilyVersion({ recipeId: b.recipe.id, baseVersionId: b.original.id, changes: [{ slot: "nuoc_mam", quantity: 1.5 }], reason: "Lần trước hơi mặn" });
+    // Put the phone back to how it was before the video dishes existed.
+    const db = getDb();
+    for (const r of (await repo.listRecipes()).filter((x) => x.verification === "entered")) {
+      await db.versions.where("recipeId").equals(r.id).delete();
+      await db.recipes.delete(r.id);
+    }
+    await db.settings.put({ key: "seededIds", value: SEED_RECIPES.filter((s) => !s.verification).map((s) => s.seedId) });
+    expect(await repo.listRecipes()).toHaveLength(10);
+    await repo.ensureSeeded();
+    await repo.ensureSeeded();
+    expect(await repo.listRecipes()).toHaveLength(SEED_RECIPES.length);
+    expect((await firstRecipe()).family?.changeReason).toBe("Lần trước hơi mặn");
   });
   it("does not bring back a sample that was deleted", async () => {
     const b = await firstRecipe();
@@ -33,7 +67,8 @@ describe("first run", () => {
   });
   it("filters by category", async () => {
     const soups = await repo.listRecipes({ category: "Món canh" });
-    expect(soups.map((r) => r.name).sort()).toEqual(["Canh bí nấu tôm", "Canh chua cá"]);
+    expect(soups.filter((r) => r.verification === "sample").map((r) => r.name).sort()).toEqual(["Canh bí nấu tôm", "Canh chua cá"]);
+    expect(soups.length).toBe(SEED_RECIPES.filter((s) => s.categories.includes("Món canh")).length);
     expect(await repo.listCategories()).toEqual(["Món kho", "Món chiên", "Món xào", "Món canh", "Món ăn gia đình"]);
   });
   it("finds a dish without diacritics", async () => {
@@ -166,5 +201,79 @@ describe("deleting and approving", () => {
     expect((await firstRecipe()).recipe.verification).toBe("sample");
     await repo.confirmFamilyApproved(b.recipe.id, good.id);
     expect((await firstRecipe()).recipe.verification).toBe("family_approved");
+  });
+});
+
+// The ten unverified samples are no longer part of the app (2026-11-23).
+describe("the samples are put away", () => {
+  /** A phone as it was before: only the ten samples, loaded by an earlier version of the app. */
+  async function oldPhone() {
+    setDbForTests(new BepNhaDB(`old-phone-${++n}`));
+    await repo.addBuiltInRecipes(SAMPLE_SEEDS);
+    await getDb().settings.put({ key: "seededIds", value: SAMPLE_SEEDS.map((x) => x.seedId) });
+  }
+  const named = async (query: string) => (await repo.getRecipeBundle((await repo.listRecipes({ query }))[0].id))!;
+
+  it("a new phone starts with the dishes from videos only", async () => {
+    setDbForTests(new BepNhaDB(`new-phone-${++n}`));
+    await repo.ensureSeeded();
+    const list = await repo.listRecipes();
+    expect(list).toHaveLength(APP_SEEDS.length);
+    expect(list.filter((r) => r.verification === "sample")).toEqual([]);
+    expect(await repo.listRecipes({ archived: true })).toEqual([]);
+  });
+
+  it("on a phone that has them they go to “Món đã xoá”; nothing is deleted and the journal is kept", async () => {
+    await oldPhone();
+    const cooked = await named("canh chua ca");
+    const meal = await repo.startSession(cooked.recipe.id, cooked.original.id, 4);
+    await repo.finishSession(meal.id, { verdict: "vua_mieng" });
+    const versionsBefore = await getDb().versions.count();
+
+    await repo.ensureSeeded();
+
+    const visible = await repo.listRecipes();
+    expect(visible).toHaveLength(APP_SEEDS.length);
+    expect(visible.every((r) => r.verification === "entered")).toBe(true);
+    const away = await repo.listRecipes({ archived: true });
+    expect(away.map((r) => r.name).sort()).toEqual(SAMPLE_SEEDS.map((x) => x.name).sort());
+    // Rule 3 and 4: the meal she cooked is still in the journal, tied to the version cooked.
+    expect(await getDb().versions.count()).toBe(versionsBefore + APP_SEEDS.length);
+    const journal = await repo.listJournal();
+    expect(journal).toHaveLength(1);
+    expect(journal[0].session.versionId).toBe(cooked.original.id);
+    await expect(repo.deleteRecipeForever(cooked.recipe.id)).rejects.toThrow();
+  });
+
+  it("a sample the family made its own stays: a favourite, one with “Bản nhà mình”, one being cooked", async () => {
+    await oldPhone();
+    const favourite = await named("thit kho trung");
+    await repo.toggleFavorite(favourite.recipe.id);
+    const adjusted = await named("ca kho to");
+    await repo.saveFamilyVersion({ recipeId: adjusted.recipe.id, baseVersionId: adjusted.original.id, changes: [{ slot: "nuoc_mam", quantity: 1.5 }], reason: "Bớt mặn" });
+    // Adjusted, then switched back to the original: the family version still exists.
+    const switchedBack = await named("canh bi nau tom");
+    const first = switchedBack.original.ingredients.find((i) => i.quantity != null)!;
+    await repo.saveFamilyVersion({ recipeId: switchedBack.recipe.id, baseVersionId: switchedBack.original.id, changes: [{ slot: first.slot, quantity: first.quantity! * 2 }], reason: "Nhà đông người" });
+    await repo.setPreferredVersion(switchedBack.recipe.id, null);
+    const cooking = await named("canh chua ca");
+    await repo.startSession(cooking.recipe.id, cooking.original.id, 4);
+
+    await repo.ensureSeeded();
+
+    const kept = (await repo.listRecipes()).filter((r) => r.verification === "sample").map((r) => r.name).sort();
+    expect(kept).toEqual(["Canh bí nấu tôm", "Canh chua cá", "Cá kho tộ", "Thịt kho trứng"].sort());
+    expect(await repo.listRecipes({ archived: true })).toHaveLength(SAMPLE_SEEDS.length - 4);
+    expect((await named("ca kho to")).family?.changeReason).toBe("Bớt mặn");
+  });
+
+  it("happens once: a sample brought back from “Món đã xoá” is not put away again", async () => {
+    await oldPhone();
+    await repo.ensureSeeded();
+    const [back] = await repo.listRecipes({ archived: true, query: "ca kho to" });
+    await repo.archiveRecipe(back.id, false);
+    await repo.ensureSeeded();
+    expect((await repo.listRecipes({ query: "ca kho to" })).map((r) => r.name)).toEqual(["Cá kho tộ"]);
+    expect(await repo.listRecipes({ archived: true })).toHaveLength(SAMPLE_SEEDS.length - 1);
   });
 });

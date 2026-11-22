@@ -4,7 +4,12 @@ import { searchKey } from "@/lib/text";
 import { diffVersions, fillStepText, roundPractical, scaledIngredients, stepSpeech } from "@/features/recipe-text";
 import * as caKho from "@/data/seed/ca-kho-to";
 import type { RecipeVersion } from "@/data/types";
-import { SEED_RECIPES } from "@/data/seed";
+import { SEED_RECIPES as APP_SEEDS } from "@/data/seed";
+import { SAMPLE_SEEDS } from "@/data/seed/samples";
+
+// These tests work on a phone from before 2026-11-23: it holds the ten unverified samples the app
+// used to load, next to the dishes rewritten from videos. A new phone has only the latter.
+const SEED_RECIPES = [...SAMPLE_SEEDS, ...APP_SEEDS];
 
 const version: RecipeVersion = {
   id: "v1", recipeId: "r1", kind: "original", versionNo: 1, parentVersionId: null,
@@ -92,9 +97,34 @@ describe("step text", () => {
         expect(total, `${ing.slot} is used in some step`).toBeGreaterThanOrEqual(1);
         if (ing.kind === "seasoning") expect(total, `portions of ${ing.slot}`).toBeCloseTo(1);
       }
-      expect(seed.source.kind).toBe("sample");
+      if (seed.verification === "entered") {
+        // Written from a video: the source must name the channel and the video, and say it was rewritten.
+        expect(seed.source.kind).toBe("youtube");
+        expect(seed.source.fidelity).toBe("transcribed");
+        expect(seed.source.creatorName).toBeTruthy();
+        expect(seed.source.url).toBe(`https://www.youtube.com/watch?v=${seed.source.youtubeVideoId}`);
+        expect(seed.source.note).toBeTruthy();
+        // Every step points at the part of the video that shows it, in order and inside the video.
+        let last = 0;
+        for (const st of seed.steps) {
+          expect(st.videoStartSeconds, `video start of step ${st.no}`).toBeGreaterThanOrEqual(last);
+          expect(st.videoEndSeconds, `video end of step ${st.no}`).toBeGreaterThan(st.videoStartSeconds!);
+          last = st.videoStartSeconds!;
+        }
+      } else {
+        expect(seed.source.kind).toBe("sample");
+      }
     });
   }
+  it("a dish written from a video shows the channel's amounts, and “ít” where the channel gave none", () => {
+    const dish = SEED_RECIPES.find((s) => s.seedId === "video-thit-kho-tieu-co-ba")!;
+    const text = dish.steps.flatMap((s) => s.instructions.map((t) => fillStepText(t, dish.ingredients))).join(" ");
+    expect(text).toContain("1½ muỗng canh nước mắm");
+    expect(text).toContain("500 ml nước lọc");
+    expect(text).toContain("ít tiêu xay");
+    expect(text).toContain("ít muối vào một thau nước");
+    expect(text).not.toMatch(/[{}]/);
+  });
   it("speaks the step with spoken quantities", () => {
     const speech = stepSpeech(version, 2, 4);
     expect(speech).toContain("Bước 2. Ướp cá.");
@@ -109,5 +139,21 @@ describe("comparing versions", () => {
     const changed = diffVersions(version, family).filter((d) => d.changed);
     expect(changed).toHaveLength(1);
     expect(changed[0]).toMatchObject({ slot: "duong", from: 1, to: 0.5 });
+  });
+});
+
+describe("video of a step", () => {
+  it("plays only the part of the video that belongs to the step, from the no-cookie player", async () => {
+    const { clipLength, stepVideoUrl, videoCoverUrl } = await import("@/features/video/youtube");
+    const url = new URL(stepVideoUrl("CHhWIhh2_OM", 82, 150));
+    expect(url.origin + url.pathname).toBe("https://www.youtube-nocookie.com/embed/CHhWIhh2_OM");
+    expect(url.searchParams.get("start")).toBe("82");
+    expect(url.searchParams.get("end")).toBe("150");
+    expect(url.searchParams.get("playsinline")).toBe("1");
+    expect(new URL(stepVideoUrl("CHhWIhh2_OM", 82)).searchParams.has("end")).toBe(false);
+    expect(clipLength(82, 150)).toBe("1 phút 8 giây");
+    expect(clipLength(72, 82)).toBe("10 giây");
+    expect(clipLength(60, 180)).toBe("2 phút");
+    expect(videoCoverUrl("CHhWIhh2_OM", "large")).toBe("https://i.ytimg.com/vi/CHhWIhh2_OM/hq720.jpg");
   });
 });

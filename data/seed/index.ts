@@ -1,9 +1,10 @@
-import * as caKhoTo from "./ca-kho-to";
-import { MORE_SEEDS, SAMPLE_SOURCE, type Seed } from "./more";
+import type { Seed } from "./shared";
+import { VIDEO_SEEDS } from "./video";
 
 /**
- * Sample recipes loaded on first run. All are stored as verification = "sample":
- * none has been cooked or checked by the family.
+ * Recipes loaded once per device: the dishes rewritten from mother's YouTube channels, stored
+ * as "entered" ("Mới nhập – chưa nấu thử"). None has been cooked or checked by the family.
+ * The ten unverified samples of the first versions are no longer loaded (data/seed/samples.ts).
  */
-export const SEED_RECIPES: Seed[] = [{ seedId: "ca-kho-to", ...caKhoTo, source: SAMPLE_SOURCE }, ...MORE_SEEDS];
+export const SEED_RECIPES: Seed[] = VIDEO_SEEDS;
 export type SeedRecipe = Seed;

@@ -1,17 +1,23 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { BepNhaDB, getDb, setDbForTests } from "@/data/db";
 import * as repo from "@/data/repo";
-import { SEED_RECIPES } from "@/data/seed";
 import type { RecipeForm, RecipeVersion } from "@/data/types";
 import { buildContent, contentOf, emptyForm, fixedAmounts, forbiddenAmounts, formFromRecipe, fromFriendly, newIngredient, newStep, sameContent, toFriendly, validateForm, youtubeId } from "@/features/editor/form";
 import { fillStepText } from "@/features/recipe-text";
 import { fitWithin } from "@/features/photos/compress";
 import { parseAmount } from "@/lib/quantity";
+import { SEED_RECIPES as APP_SEEDS } from "@/data/seed";
+import { SAMPLE_SEEDS } from "@/data/seed/samples";
+
+// These tests work on a phone from before 2026-11-23: it holds the ten unverified samples the app
+// used to load, next to the dishes rewritten from videos. A new phone has only the latter.
+const SEED_RECIPES = [...SAMPLE_SEEDS, ...APP_SEEDS];
 
 let n = 0;
 beforeEach(async () => {
   setDbForTests(new BepNhaDB(`editor-test-${++n}`));
   await repo.ensureSeeded();
+  await repo.addBuiltInRecipes(SAMPLE_SEEDS);
 });
 
 /** A complete, valid form: a dish for 4. */
