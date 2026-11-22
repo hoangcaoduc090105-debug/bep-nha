@@ -8,13 +8,21 @@ const origin = new URL(base).origin;
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "chrome" });
 const context = await browser.newContext({ ...devices["Pixel 7"], locale: "vi-VN" });
 const page = await context.newPage();
+// The two addresses a dish rewritten from a video may use: its cover picture and the player.
+const VIDEO_HOSTS = ["i.ytimg.com", "www.youtube-nocookie.com"];
 const outside = [];
+const videoRequests = new Set();
 const failed = [];
-page.on("request", (r) => { if (r.url().startsWith("http") && new URL(r.url()).origin !== origin) outside.push(r.url()); });
+page.on("request", (r) => {
+  if (!r.url().startsWith("http") || new URL(r.url()).origin === origin) return;
+  if (VIDEO_HOSTS.includes(new URL(r.url()).host)) videoRequests.add(new URL(r.url()).host);
+  else outside.push(r.url());
+});
 page.on("response", (r) => { if (r.status() >= 400) failed.push(`${r.status()} ${r.url()}`); });
 const errors = [];
 const lost = new Set();
-page.on("requestfailed", (r) => lost.add(`${r.method()} ${new URL(r.url()).pathname}`));
+// A cover picture this browser has never shown cannot be fetched with no network; that is expected.
+page.on("requestfailed", (r) => { if (!VIDEO_HOSTS.includes(new URL(r.url()).host)) lost.add(`${r.method()} ${new URL(r.url()).pathname}`); });
 page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
 
 const result = {};
@@ -30,13 +38,17 @@ result.offlineHome = await page.locator("h1").innerText();
 await page.getByRole("link", { name: "Công thức" }).click();
 await page.locator("main h3").first().waitFor();
 result.offlineRecipes = await page.locator("main h3").count();
-await page.getByRole("searchbox").fill("ca kho");
-await page.getByRole("link", { name: /Cá kho tộ/ }).click();
+result.samplesShown = await page.getByText("Mẫu – chưa kiểm chứng").count();
+await page.getByRole("searchbox").fill("canh he");
+await page.getByRole("link", { name: /Canh hẹ đậu hũ non thịt bằm/ }).click();
 await page.getByRole("button", { name: "Bắt đầu nấu" }).click();
+result.ingredientsVideoButton = await page.getByRole("button", { name: /Xem đoạn kênh nói về nguyên liệu/ }).innerText();
 await page.getByRole("button", { name: "Bắt đầu bước 1" }).click();
+result.stepVideoButton = await page.getByRole("button", { name: /Xem đoạn video của bước này/ }).innerText();
 result.offlineCookingStep = await page.locator("h1").innerText();
 result.url = page.url();
 result.requestsToOtherServers = outside;
+result.requestsForVideos = [...videoRequests];
 result.failedResponses = failed;
 result.consoleErrors = errors.length;
 result.requestsThatFailedOffline = [...lost];
