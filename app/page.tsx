@@ -36,7 +36,8 @@ export default function HomePage() {
   return (
     <AppShell tab="home">
       <div className="flex items-center justify-between gap-3">
-        <FamilyPhoto className="size-28" />
+        {/* 7rem, or less when the text is at its largest: the two buttons, the gap and the page margins take about 16rem, and the row must not get wider than the screen. */}
+        <FamilyPhoto className="size-[min(7rem,calc(100vw-16rem))]" />
         <div className="flex shrink-0">
           <Link href="/huong-dan/" className="flex min-h-target flex-col items-center justify-center rounded-md px-3 text-sm font-medium text-accent">
             <CircleHelp aria-hidden className="size-7" />
