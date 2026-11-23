@@ -5,6 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { BookOpen, ChefHat, CirclePlay, ClipboardCheck, Dices, PartyPopper, Volume2, type LucideIcon } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/back-link";
+import { BrandLogo } from "@/components/brand-logo";
 import { getSetting } from "@/data/repo";
 import { DEFAULTS } from "@/lib/settings";
 
@@ -50,7 +51,10 @@ export default function GuidePage() {
   return (
     <AppShell tab="home">
       <BackLink href="/">Trang chủ</BackLink>
-      <h1 className="text-display">Cách dùng Bếp Nhà</h1>
+      <div className="flex items-center gap-4">
+        <BrandLogo alt="" className="size-20" />
+        <h1 className="text-display">Cách dùng Bếp Nhà</h1>
+      </div>
       <p className="text-lg text-text-muted">Sáu việc, đi từ lúc chưa biết nấu gì tới lúc dọn cơm.</p>
       <ol className="flex flex-col gap-4">
         {CARDS.map(({ Icon, title, lines }, n) => (

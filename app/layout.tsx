@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   title: "Bếp Nhà",
   description: "Sổ tay nấu ăn của gia đình",
   robots: { index: false, follow: false }, // private family app
-  icons: { icon: [{ url: `${base}/icon.svg`, type: "image/svg+xml" }, { url: `${base}/icon-192.png`, sizes: "192x192" }], apple: `${base}/apple-touch-icon.png` },
+  icons: { icon: [{ url: `${base}/favicon.png`, sizes: "64x64", type: "image/png" }, { url: `${base}/icon-192.png`, sizes: "192x192", type: "image/png" }], apple: `${base}/apple-touch-icon.png` },
   appleWebApp: { capable: true, title: "Bếp Nhà", statusBarStyle: "default" },
 };
 
@@ -44,7 +44,7 @@ const CSP = [
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#FBF6EC",
+  themeColor: "#FAF4E6",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

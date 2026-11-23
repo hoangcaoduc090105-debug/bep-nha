@@ -9,21 +9,22 @@ import { FAMILY_PHOTO, getSetting, removeFamilyPhoto, setFamilyPhoto } from "@/d
 import { compressPhoto } from "@/features/photos/compress";
 import { useImageUrl } from "@/features/photos/use-image-url";
 import { cn } from "@/lib/cn";
-
-const LOGO = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/icon.svg`;
+import { BrandLogo } from "@/components/brand-logo";
 
 /**
  * The family's own picture in a round gold frame — on the home page, next to the greeting. It is
  * chosen once in Cài đặt and stays on this phone (and in its backups); it is never part of the
- * app itself. Until one is chosen the frame shows the app's drawing of mother and son.
+ * app itself. Until one is chosen the place shows the app's logo, which has its own ring.
  */
 export function FamilyPhoto({ className }: { className?: string }) {
   const id = useLiveQuery(() => getSetting<string | null>(FAMILY_PHOTO, null), []);
   const own = useImageUrl(id);
+  if (!id || !own) return <BrandLogo alt="Hình vẽ hai mẹ con" className={className} />;
   return (
-    <span className={cn("block shrink-0 overflow-hidden rounded-pill border-4 border-gold bg-surface-warm", className)}>
-      {/* eslint-disable-next-line @next/next/no-img-element -- a picture from the device, or the app's own drawing */}
-      <img src={id && own ? own : LOGO} alt={id && own ? "Ảnh của nhà mình" : "Hình vẽ hai mẹ con"} className="size-full object-cover" />
+    // Framed like the logo: a jade ring inside a gold one.
+    <span className={cn("block shrink-0 overflow-hidden rounded-pill border-4 border-accent bg-surface-warm outline-2 outline-offset-2 outline-gold", className)}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- a picture from the device */}
+      <img src={own} alt="Ảnh của nhà mình" className="size-full object-cover" />
     </span>
   );
 }

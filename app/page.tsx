@@ -36,7 +36,7 @@ export default function HomePage() {
   return (
     <AppShell tab="home">
       <div className="flex items-center justify-between gap-3">
-        <FamilyPhoto className="size-24" />
+        <FamilyPhoto className="size-28" />
         <div className="flex shrink-0">
           <Link href="/huong-dan/" className="flex min-h-target flex-col items-center justify-center rounded-md px-3 text-sm font-medium text-accent">
             <CircleHelp aria-hidden className="size-7" />

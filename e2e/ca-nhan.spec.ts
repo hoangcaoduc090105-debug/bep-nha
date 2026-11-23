@@ -52,8 +52,8 @@ test("the family's picture is chosen once in Cài đặt, shown by the greeting,
     if (u.protocol.startsWith("http") && u.host !== "127.0.0.1:4173" && u.host !== "i.ytimg.com") outside.push(r.url());
   });
   await page.goto("/");
-  // Until a picture is chosen the frame shows the app's own drawing.
-  await expect(page.getByRole("img", { name: "Hình vẽ hai mẹ con" })).toHaveAttribute("src", /\/icon\.svg$/);
+  // Until a picture is chosen the place shows the app's own logo.
+  await expect(page.getByRole("img", { name: "Hình vẽ hai mẹ con" })).toHaveAttribute("src", /\/logo\.webp$/);
 
   await page.goto("/cai-dat/");
   const png = await page.evaluate(async () => {

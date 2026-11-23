@@ -18,7 +18,7 @@ export type TabId = (typeof TABS)[number]["id"];
  * Five tabs, icon and label always shown. `cookingStep` shows a badge while a dish is being cooked. */
 export function TabBar({ current, cookingStep, className }: { current: TabId; cookingStep?: number; className?: string }) {
   return (
-    <nav aria-label="Điều hướng chính" className={cn("border-t border-border bg-surface pb-[env(safe-area-inset-bottom)]", className)}>
+    <nav aria-label="Điều hướng chính" className={cn("border-t-2 border-wood bg-surface pb-[env(safe-area-inset-bottom)]", className)}>
       <ul className="mx-auto grid max-w-3xl grid-cols-5">
         {TABS.map(({ id, href, label, Icon }) => {
           const active = id === current;

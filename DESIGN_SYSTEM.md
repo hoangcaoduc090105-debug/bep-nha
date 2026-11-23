@@ -17,18 +17,25 @@ This is an original identity. Nothing visual is taken from Cookpad (none of its 
 
 | role | value | use |
 | --- | --- | --- |
-| bg | `#FBF6EC` warm ivory | page background |
-| surface | `#FFFFFF` | cards |
-| surface-warm | `#F3E9D8` | quantity panels, section bands |
-| text | `#2B2118` | all body text (14.6:1 on ivory) |
-| text-muted | `#5E5145` | secondary text (7.1:1) |
-| accent | `#A9471F` terracotta | primary buttons, active tab, links |
-| accent-soft | `#F8E3D6` | selected chips, "Bản nhà mình" badge |
-| secondary | `#35622F` leaf green | success, "Đã duyệt", done ticks |
-| secondary-soft | `#E4EEDD` | completed steps |
+| bg | `#FAF4E6` cream (the kitchen wall in the logo) | page background |
+| surface | `#FFFDF8` warm white | cards |
+| surface-warm | `#F3E8D3` | quantity panels, section bands, pressed state of light buttons |
+| border | `#E3D5BC` | card outlines |
+| text | `#1B2538` deep navy | all body text (14.0:1 on cream) |
+| text-muted | `#4E566A` | secondary text (6.7:1) |
+| accent | `#1F6F64` jade (the áo dài and inner ring, darkened for white text) | primary buttons, active tab, links |
+| accent-soft | `#DCEFEA` | selected chips, "Bản nhà mình" badge, icon discs |
+| secondary | `#202C43` navy (his shirt) | done ticks, progress bar, "đang dùng" |
+| secondary-soft | `#E6EAF2` | completed steps, "Được khi" boxes |
+| gold | `#CFAE5C` (outer ring and heart) | **decoration only**: frames, rules. Never text (about 2:1 on cream) |
+| gold-soft | `#F8EFD6` | the "Hôm nay nấu gì?" panel |
+| wood | `#B88A58` (shelves and kettle) | **decoration only**: the line above the tab bar |
 | danger | `#B3261E` | destructive, errors |
+| success | `#2E6B34` | saved, done |
 | warning-bg | `#FFF1C2` | "Tránh" (mistake to avoid) boxes |
-| border-input | `#8A7660` | inputs and control outlines (≥ 3:1) |
+| border-input | `#6E7686` | inputs and control outlines (≥ 3:1) |
+
+The palette comes from the logo (`replica/design/logo.webp`); the values above were sampled from it, then the jade was darkened until white text on it passes AA. The logo itself is shown through `components/brand-logo.tsx` and never gets an extra border: it already has its jade and gold ring. Pressed states: primary buttons darken, light buttons turn `surface-warm`; there is no hover-only state.
 
 Colour never carries meaning alone: every state also has words and an icon.
 
@@ -52,7 +59,7 @@ Cài đặt offers three sizes — Lớn (default) · Rất lớn (+15%) · Cự
 
 - Spacing scale 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64. Page padding 16 on phones, 24 on tablets.
 - Touch targets: **56 px minimum**, primary actions 64 px, microphone 88 px. At least 12 px between targets.
-- Radius 14 on cards and buttons, 20 on sheets. One soft shadow for cards.
+- Radius 16 on buttons and inner panels, 24 on cards and sheets — round like the logo. One soft, warm shadow for cards.
 - Phone first (360–430 px). Tablet: recipe detail in two columns (ingredients | steps). Desktop: centred column, max 720 px; the recipe editor uses up to 1100 px.
 - Bottom navigation: 5 tabs, icon + label always, 72 px tall, respects the phone's safe area. Tab labels are the one text that follows screen width instead of the text-size setting, so five labels always fit a 360 px phone.
 - Primary action sits at the bottom of the screen, full width, within thumb reach.
