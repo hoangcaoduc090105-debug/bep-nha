@@ -50,10 +50,10 @@ test("the list is sorted by kind of dish, and can be narrowed by what the dish i
   await expect(page.getByRole("button", { name: "Món ăn gia đình" })).toHaveCount(0);
 
   await page.getByRole("group", { name: "Nguyên liệu chính" }).getByRole("button", { name: "Thịt bò" }).click();
-  await expect(page.locator("main h3")).toHaveText(["Cà ri bò (Tú Lê)", "Thịt bò xào măng tây (Tú Lê)"]);
+  await expect(page.locator("main h3")).toHaveText(["Cà ri bò (Tú Lê)", "Thịt bò xào bông cải (Tú Lê)", "Thịt bò xào đậu que (Tú Lê)", "Thịt bò xào măng tây (Tú Lê)"]);
   // Both at once: beef, and only the stir-fries.
   await page.getByRole("group", { name: "Loại món" }).getByRole("button", { name: "Món xào" }).click();
-  await expect(page.locator("main h3")).toHaveText(["Thịt bò xào măng tây (Tú Lê)"]);
+  await expect(page.locator("main h3")).toHaveText(["Thịt bò xào bông cải (Tú Lê)", "Thịt bò xào đậu que (Tú Lê)", "Thịt bò xào măng tây (Tú Lê)"]);
   await page.getByRole("group", { name: "Nguyên liệu chính" }).getByRole("button", { name: "Thịt bò" }).click();
   await expect(page.locator("main h3")).toHaveCount(count("Món xào"));
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);

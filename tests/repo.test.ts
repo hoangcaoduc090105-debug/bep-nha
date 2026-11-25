@@ -73,7 +73,7 @@ describe("first run", () => {
     expect(await repo.listCategories()).toEqual(["Món mặn", "Món canh", "Món xào", "Món chiên", "Món ăn gia đình"]);
     expect(await repo.listMainIngredients()).toEqual(["Thịt heo", "Thịt gà", "Thịt bò", "Cá, tôm", "Rau củ, đậu hũ"]);
     const beef = await repo.listRecipes({ mainIngredient: "Thịt bò" });
-    expect(beef.map((r) => r.name).sort()).toEqual(["Cà ri bò (Tú Lê)", "Thịt bò xào măng tây (Tú Lê)"]);
+    expect(beef.map((r) => r.name).sort()).toEqual(["Cà ri bò (Tú Lê)", "Thịt bò xào bông cải (Tú Lê)", "Thịt bò xào măng tây (Tú Lê)", "Thịt bò xào đậu que (Tú Lê)"]);
     // A sample still filed as "Món kho" is found under "Món mặn".
     expect((await repo.listRecipes({ category: "Món mặn" })).some((r) => r.name === "Cá kho tộ")).toBe(true);
   });
