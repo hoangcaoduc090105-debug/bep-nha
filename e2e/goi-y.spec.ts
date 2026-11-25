@@ -45,7 +45,7 @@ test("the list is sorted by kind of dish, and can be narrowed by what the dish i
   await page.goto("/cong-thuc/");
   await expect(page.locator("main h3")).toHaveCount(SEED_RECIPES.length);
   // Headings in a fixed order, each with its number of dishes.
-  await expect(page.locator("main h2")).toHaveText([`Món mặn${count("Món mặn")} món`, `Món canh${count("Món canh")} món`, `Món xào${count("Món xào")} món`, `Món chiên${count("Món chiên")} món`]);
+  await expect(page.locator("main h2")).toHaveText([`Món mặn${count("Món mặn")} món`, `Món canh${count("Món canh")} món`, `Món xào${count("Món xào")} món`, `Món chiên${count("Món chiên")} món`, `Món bánh${count("Món bánh")} món`]);
   await expect(page.getByRole("region", { name: "Món canh" }).locator("h3")).toHaveCount(count("Món canh"));
   await expect(page.getByRole("button", { name: "Món ăn gia đình" })).toHaveCount(0);
 

@@ -70,7 +70,7 @@ describe("first run", () => {
     expect(soups.filter((r) => r.verification === "sample").map((r) => r.name).sort()).toEqual(["Canh bí nấu tôm", "Canh chua cá"]);
     expect(soups.length).toBe(SEED_RECIPES.filter((s) => s.categories.includes("Món canh")).length);
     // Kinds of dish only; the samples' older "Món ăn gia đình" comes last, and main ingredients apart.
-    expect(await repo.listCategories()).toEqual(["Món mặn", "Món canh", "Món xào", "Món chiên", "Món ăn gia đình"]);
+    expect(await repo.listCategories()).toEqual(["Món mặn", "Món canh", "Món xào", "Món chiên", "Món bánh", "Món ăn gia đình"]);
     expect(await repo.listMainIngredients()).toEqual(["Thịt heo", "Thịt gà", "Thịt bò", "Cá, tôm", "Rau củ, đậu hũ"]);
     const beef = await repo.listRecipes({ mainIngredient: "Thịt bò" });
     expect(beef.map((r) => r.name).sort()).toEqual(["Cà ri bò (Tú Lê)", "Thịt bò xào bông cải (Tú Lê)", "Thịt bò xào măng tây (Tú Lê)", "Thịt bò xào đậu que (Tú Lê)"]);
@@ -95,7 +95,8 @@ describe("first run", () => {
   it("finds a dish without diacritics", async () => {
     expect(await repo.listRecipes({ query: "ca kho" })).toHaveLength(1);
     expect(await repo.listRecipes({ query: "CÁ KHO" })).toHaveLength(1);
-    expect(await repo.listRecipes({ query: "pho" })).toHaveLength(0);
+    // ("pho" would now find "đậu phộng" in a dish's name.)
+    expect(await repo.listRecipes({ query: "pizza" })).toHaveLength(0);
   });
 });
 

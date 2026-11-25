@@ -7,7 +7,7 @@ import { ChevronRight, Dices, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { listJournal, listRecipes } from "@/data/repo";
 import type { Recipe } from "@/data/types";
-import { isSoup, suggestMain, suggestMeal, suggestSoup, type LastCooked, type Meal } from "@/features/suggest/meal";
+import { isMain, isSoup, suggestMain, suggestMeal, suggestSoup, type LastCooked, type Meal } from "@/features/suggest/meal";
 
 const SPIN_MS = 1400;
 const TICK_MS = 110;
@@ -36,7 +36,7 @@ export function MealSuggestion() {
   const draw = (parts: { main: boolean; soup: boolean }, next: Meal) => {
     const still = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (still) return setMeal(next);
-    const names = (soup: boolean) => recipes.filter((r) => isSoup(r) === soup).map((r) => r.name);
+    const names = (soup: boolean) => recipes.filter((r) => (soup ? isSoup(r) : isMain(r))).map((r) => r.name);
     const mains = names(false);
     const soups = names(true);
     setSpinning(parts);

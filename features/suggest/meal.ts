@@ -1,5 +1,5 @@
 import type { Recipe } from "@/data/types";
-import { dishType } from "@/lib/dish-groups";
+import { NOT_FOR_A_MEAL, dishType } from "@/lib/dish-groups";
 
 // "Hôm nay nấu gì?" — a meal for today: one dish to eat with rice and one soup. It asks nothing
 // of the cook: it only looks at the dishes on the phone and at the journal.
@@ -36,10 +36,12 @@ function pick(pool: Recipe[], last: LastCooked, now: number, random: () => numbe
 }
 
 export const isSoup = (r: Recipe) => dishType(r) === "Món canh";
+/** Something to eat with rice: not a soup, and not a cake. */
+export const isMain = (r: Recipe) => !isSoup(r) && !NOT_FOR_A_MEAL.includes(dishType(r));
 
 /** A dish to eat with rice, other than `not`. */
 export function suggestMain(recipes: Recipe[], last: LastCooked, now: number, random: () => number = Math.random, not?: string | null): Recipe | null {
-  return pick(recipes.filter((r) => !r.isArchived && !isSoup(r)), last, now, random, not);
+  return pick(recipes.filter((r) => !r.isArchived && isMain(r)), last, now, random, not);
 }
 
 /** A soup, other than `not`. */

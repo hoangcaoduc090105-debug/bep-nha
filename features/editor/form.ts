@@ -6,7 +6,7 @@ import { UNIT_LABELS } from "@/lib/quantity";
 import { shortName } from "@/features/recipe-text";
 
 /** Kinds of dish first, then what the dish is mainly made of (see lib/dish-groups.ts). */
-export const CATEGORY_ORDER = ["Món mặn", "Món canh", "Món xào", "Món chiên", "Món hấp", "Món luộc", "Món nướng", "Món gỏi", "Món ăn sáng", "Món tráng miệng", "Thịt heo", "Thịt gà", "Thịt bò", "Cá, tôm", "Rau củ, đậu hũ"];
+export const CATEGORY_ORDER = ["Món mặn", "Món canh", "Món xào", "Món chiên", "Món bánh", "Món hấp", "Món luộc", "Món nướng", "Món gỏi", "Món ăn sáng", "Món tráng miệng", "Thịt heo", "Thịt gà", "Thịt bò", "Cá, tôm", "Rau củ, đậu hũ"];
 
 /** Units offered in the editor, the everyday ones first. */
 export const UNIT_CHOICES: Unit[] = ["g", "muong_canh", "muong_ca_phe", "cu", "trai", "chen", "ml", "kg", "l", "tep", "nhanh", "cay", "la", "lat", "con", "qua", "mieng", "bo", "hop"];

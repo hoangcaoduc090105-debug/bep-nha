@@ -4,10 +4,16 @@ import type { Recipe } from "@/data/types";
 // Both are ordinary entries in a recipe's `categories`, so a dish typed in the editor gets
 // them the same way.
 
-/** The kinds a family meal is built from. A meal is usually one of the first, third or fourth, plus a soup. */
-export const DISH_TYPES = ["Món mặn", "Món canh", "Món xào", "Món chiên"] as const;
+/**
+ * The kinds dishes are listed under. A meal is usually one of the first, third or fourth, plus a soup.
+ * "Món bánh" (cakes, added 2026-11-25 for mother's mooncake) is listed last and is not part of a meal.
+ */
+export const DISH_TYPES = ["Món mặn", "Món canh", "Món xào", "Món chiên", "Món bánh"] as const;
 export type DishType = (typeof DISH_TYPES)[number];
 export const OTHER_DISHES = "Món khác";
+
+/** Kinds that are not eaten with rice: never suggested for a meal, and filed without a main ingredient. */
+export const NOT_FOR_A_MEAL: readonly string[] = ["Món bánh"];
 
 export const MAIN_INGREDIENTS = ["Thịt heo", "Thịt gà", "Thịt bò", "Cá, tôm", "Rau củ, đậu hũ"] as const;
 

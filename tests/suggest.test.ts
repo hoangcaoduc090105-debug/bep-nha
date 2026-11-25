@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Recipe } from "@/data/types";
 import { SEED_RECIPES } from "@/data/seed";
 import { REST_DAYS, suggestMain, suggestMeal, suggestSoup, type LastCooked } from "@/features/suggest/meal";
-import { DISH_TYPES, MAIN_INGREDIENTS, dishType, groupByType, mainIngredient } from "@/lib/dish-groups";
+import { DISH_TYPES, MAIN_INGREDIENTS, NOT_FOR_A_MEAL, dishType, groupByType, mainIngredient } from "@/lib/dish-groups";
 
 const dish = (id: string, categories: string[], extra: Partial<Recipe> = {}): Recipe => ({
   id, name: id, searchName: id, description: "", imageId: null, categories,
@@ -18,8 +18,10 @@ describe("how dishes are sorted", () => {
   it("every dish from a video has one kind and one main ingredient", () => {
     for (const s of SEED_RECIPES) {
       expect(s.categories.filter((c) => (DISH_TYPES as readonly string[]).includes(c)), s.name).toHaveLength(1);
-      expect(s.categories.filter((c) => (MAIN_INGREDIENTS as readonly string[]).includes(c)), s.name).toHaveLength(1);
-      expect(s.categories, s.name).toHaveLength(2);
+      // A cake is filed under its kind alone; everything else also says what it is mainly made of.
+      const cake = s.categories.some((c) => NOT_FOR_A_MEAL.includes(c));
+      expect(s.categories.filter((c) => (MAIN_INGREDIENTS as readonly string[]).includes(c)), s.name).toHaveLength(cake ? 0 : 1);
+      expect(s.categories, s.name).toHaveLength(cake ? 1 : 2);
     }
     // A meal needs both: something to eat with rice, and a soup.
     expect(SEED_RECIPES.filter((s) => s.categories.includes("Món canh")).length).toBeGreaterThanOrEqual(5);
@@ -43,6 +45,11 @@ describe("“Hôm nay nấu gì?”", () => {
       expect(dishType(meal.main!)).not.toBe("Món canh");
       expect(dishType(meal.soup!)).toBe("Món canh");
     }
+  });
+  it("never offers a cake as the dish to eat with rice", () => {
+    const list = [dish("banh", ["Món bánh"]), dish("kho-1", ["Món mặn"]), dish("canh-1", ["Món canh"])];
+    for (let i = 0; i < 50; i++) expect(suggestMeal(list, new Map(), NOW).main!.id).toBe("kho-1");
+    expect(suggestMain([dish("banh", ["Món bánh"])], new Map(), NOW)).toBeNull();
   });
   it("leaves out what was cooked in the last few days", () => {
     const last: LastCooked = new Map([["kho-1", daysAgo(1)], ["canh-1", daysAgo(REST_DAYS - 1)], ["kho-2", daysAgo(REST_DAYS + 1)]]);
