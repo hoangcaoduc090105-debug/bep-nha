@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { PhotoTile } from "@/components/ui/photo-tile";
 import { useImageUrl } from "@/features/photos/use-image-url";
-import { videoCoverUrl } from "@/features/video/youtube";
+import { videoCoverUrl, type CoverSize } from "@/features/video/youtube";
 
 /**
  * The dish's own photo from the device. A dish rewritten from a video that has no photo of its
@@ -17,8 +17,9 @@ export function RecipePhoto({ imageId, name, videoId, className }: { imageId: st
 }
 
 function VideoCover({ videoId, name, className }: { videoId: string; name: string; className?: string }) {
-  // large → small → none. YouTube answers a missing size with a 120 px grey picture, not an error.
-  const [stage, setStage] = useState<"large" | "small" | "none">("large");
+  // large → medium → small → none. YouTube answers a missing size with an error or with a 120 px grey picture.
+  const [stage, setStage] = useState<CoverSize | "none">("large");
+  const next = (): CoverSize | "none" => (stage === "large" ? "medium" : stage === "medium" ? "small" : "none");
   if (stage === "none") return <PhotoTile name={name} className={className} />;
   return (
     <div className={`relative aspect-4/3 w-full overflow-hidden rounded-md bg-surface-warm ${className ?? ""}`}>
@@ -28,11 +29,12 @@ function VideoCover({ videoId, name, className }: { videoId: string; name: strin
         src={videoCoverUrl(videoId, stage)}
         alt={name}
         crossOrigin="anonymous"
-        className="size-full object-cover"
+        // The 640 px picture is 4:3 with black bars above and below the 16:9 frame: enlarged by a third, the bars fall outside the box.
+        className={`size-full object-cover ${stage === "medium" ? "scale-[1.34]" : ""}`}
         onLoad={(e) => {
-          if (e.currentTarget.naturalWidth <= 120) setStage(stage === "large" ? "small" : "none");
+          if (e.currentTarget.naturalWidth <= 120) setStage(next());
         }}
-        onError={() => setStage(stage === "large" ? "small" : "none")}
+        onError={() => setStage(next())}
       />
     </div>
   );

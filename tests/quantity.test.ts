@@ -155,5 +155,7 @@ describe("video of a step", () => {
     expect(clipLength(72, 82)).toBe("10 giây");
     expect(clipLength(60, 180)).toBe("2 phút");
     expect(videoCoverUrl("CHhWIhh2_OM", "large")).toBe("https://i.ytimg.com/vi/CHhWIhh2_OM/hq720.jpg");
+    // An older video may have no large cover; the 640 px one is tried before the small one.
+    expect(videoCoverUrl("Ffd17tt5rnc", "medium")).toBe("https://i.ytimg.com/vi/Ffd17tt5rnc/sddefault.jpg");
   });
 });

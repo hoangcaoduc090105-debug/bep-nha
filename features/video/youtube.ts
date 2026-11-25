@@ -8,9 +8,14 @@ export function stepVideoUrl(videoId: string, startSeconds: number, endSeconds?:
   return `https://www.youtube-nocookie.com/embed/${videoId}?${q}`;
 }
 
-/** The cover picture YouTube shows for a video. "large" is 16:9; "small" always exists. */
-export function videoCoverUrl(videoId: string, size: "large" | "small"): string {
-  return `https://i.ytimg.com/vi/${videoId}/${size === "large" ? "hq720" : "mqdefault"}.jpg`;
+/**
+ * The cover picture YouTube shows for a video. "large" is 16:9 at 1280 px and is missing for
+ * some older videos; "medium" is 640 px (4:3, with black bars); "small" (320 px) always exists.
+ */
+export type CoverSize = "large" | "medium" | "small";
+const COVER_FILE: Record<CoverSize, string> = { large: "hq720", medium: "sddefault", small: "mqdefault" };
+export function videoCoverUrl(videoId: string, size: CoverSize): string {
+  return `https://i.ytimg.com/vi/${videoId}/${COVER_FILE[size]}.jpg`;
 }
 
 /** "1 phút 8 giây" — how long the part of the video is. */

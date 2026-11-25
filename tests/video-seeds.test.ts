@@ -64,8 +64,8 @@ const NEAR = 10;
 const byId = (id: string) => VIDEO_SEEDS.find((s) => s.seedId === id)!;
 
 describe("the parts of the video agree with what the screen lists", () => {
-  it("covers all fifty-nine dishes", () => {
-    expect(VIDEO_SEEDS).toHaveLength(59);
+  it("covers all sixty-nine dishes", () => {
+    expect(VIDEO_SEEDS).toHaveLength(69);
   });
 
   for (const seed of VIDEO_SEEDS) {
